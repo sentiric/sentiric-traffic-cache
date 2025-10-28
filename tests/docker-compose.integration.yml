@@ -1,0 +1,23 @@
+    services:
+      app:
+        build:
+          context: ..
+          dockerfile: ../Dockerfile
+        container_name: sentiric-app-test
+        # Test ortamında sertifikalar ve cache kalıcı olmasın
+        volumes:
+          - ../config.toml:/app/config.toml
+
+      tester:
+        build:
+          context: . # Bu dizindeki Dockerfile.tester kullanılacak
+          dockerfile: Dockerfile.tester
+        container_name: sentiric-tester
+        # Proxy'mize app servis adı üzerinden erişecek
+        environment:
+          - http_proxy=http://app:3128
+          - https_proxy=http://app:3128
+        # Test script'ini çalıştır
+        command: /test-runner.sh
+        depends_on:
+          - app

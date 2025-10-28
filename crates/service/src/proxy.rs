@@ -1,4 +1,6 @@
 use crate::certs::CertificateAuthority;
+use crate::cache::CacheManager;
+use crate::downloader;
 use anyhow::{Context, Result};
 use hyper::server::conn::Http;
 use hyper::service::service_fn;
@@ -10,17 +12,23 @@ use tokio_rustls::TlsAcceptor;
 use tracing::{error, info, instrument, warn};
 
 /// Ana proxy sunucusunu çalıştırır.
-pub async fn run_server(addr: SocketAddr, ca: Arc<CertificateAuthority>) -> Result<()> {
+pub async fn run_server(
+    addr: SocketAddr,
+    ca: Arc<CertificateAuthority>,
+    cache: Arc<CacheManager>,
+) -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     info!("🚀 Proxy server listening on http://{}", addr);
 
     loop {
         let (stream, client_addr) = listener.accept().await?;
         let ca_clone = ca.clone();
+        let cache_clone = cache.clone();
 
         let service = service_fn(move |req| {
             let ca = ca_clone.clone();
-            proxy_service(req, ca)
+            let cache = cache_clone.clone();
+            proxy_service(req, ca, cache)
         });
 
         tokio::spawn(
@@ -32,10 +40,8 @@ pub async fn run_server(addr: SocketAddr, ca: Arc<CertificateAuthority>) -> Resu
                     .with_upgrades()
                     .await
                 {
-                    // Sık karşılaşılan ve genellikle zararsız olan hataları görmezden gel
                     if !err.to_string().contains("connection reset")
-                        && !err.to_string().contains("unexpected end of file")
-                    {
+                        && !err.to_string().contains("unexpected end of file") {
                         warn!(%err, "Connection error");
                     }
                 }
@@ -49,14 +55,15 @@ pub async fn run_server(addr: SocketAddr, ca: Arc<CertificateAuthority>) -> Resu
 async fn proxy_service(
     req: Request<Body>,
     ca: Arc<CertificateAuthority>,
+    cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
     if Method::CONNECT == req.method() {
-        // HTTPS isteği için bir tünel talebi
         if let Some(host) = req.uri().authority().map(|auth| auth.to_string()) {
+            let cache_clone = cache.clone();
             tokio::spawn(async move {
                 match upgrade::on(req).await {
                     Ok(upgraded) => {
-                        if let Err(e) = serve_https(upgraded, host, ca).await {
+                        if let Err(e) = serve_https(upgraded, host, ca, cache_clone).await {
                             if !e.to_string().contains("TLS handshake failed") {
                                 error!("HTTPS tunnel error: {}", e);
                             }
@@ -73,20 +80,44 @@ async fn proxy_service(
             Ok(resp)
         }
     } else {
-        // Normal HTTP isteği
-        serve_http(req).await
+        serve_http(req, cache).await
     }
 }
 
 /// Gelen HTTP isteklerini işler.
-#[instrument(skip_all, fields(uri = %req.uri()))]
-async fn serve_http(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
+#[instrument(skip(req, cache), fields(uri = %req.uri()))]
+async fn serve_http(
+    req: Request<Body>,
+    cache: Arc<CacheManager>,
+) -> Result<Response<Body>, hyper::Error> {
     info!("Handling HTTP request");
-    // TODO: İsteği cache'e veya internete yönlendir.
-    Ok(Response::new(Body::from(format!(
-        "HTTP Request Received for {}",
-        req.uri()
-    ))))
+    
+    let cache_key = req.uri().to_string();
+
+    if let Some(cached_body) = cache.get(&cache_key).await {
+        return Ok(Response::new(cached_body));
+    }
+
+    match downloader::forward_request(req).await {
+        Ok(mut response) => {
+            let body_stream = std::mem::replace(response.body_mut(), Body::empty());
+            match cache.put_stream(cache_key, body_stream).await {
+                Ok(body_for_client) => {
+                    *response.body_mut() = body_for_client;
+                }
+                Err(e) => {
+                    error!("Failed to initiate cache stream: {}", e);
+                }
+            }
+            Ok(response)
+        }
+        Err(e) => {
+            error!("Failed to forward request: {}", e);
+            let mut resp = Response::new(Body::from("Upstream request failed"));
+            *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
+            Ok(resp)
+        }
+    }
 }
 
 /// Bir CONNECT tünelini sonlandırır ve şifreli trafiği işlemeye başlar.
@@ -95,21 +126,19 @@ async fn serve_https(
     upgraded: upgrade::Upgraded,
     host: String,
     ca: Arc<CertificateAuthority>,
+    cache: Arc<CacheManager>,
 ) -> Result<()> {
     info!("Handling CONNECT request, performing TLS handshake");
-    // Domain için anında bir sertifika oluştur
     let server_config = ca
         .get_server_config(&host.split(':').next().unwrap_or(&host))
         .context("Failed to get server config for domain")?;
     
-    // TLS el sıkışmasını gerçekleştir
     let acceptor = TlsAcceptor::from(server_config);
     let stream = acceptor.accept(upgraded).await.context("TLS handshake failed")?;
 
-    // Artık şifresi çözülmüş akış üzerinden hizmet ver
     let service = service_fn(move |mut req| {
-        // Şifresi çözülmüş isteğin URI'sini yeniden oluştur
         let host_clone = host.clone();
+        let cache_clone = cache.clone();
         async move {
             let authority = host_clone.parse::<http::uri::Authority>().unwrap();
             let uri = http::Uri::builder()
@@ -119,12 +148,12 @@ async fn serve_https(
                 .build()
                 .unwrap();
             *req.uri_mut() = uri;
-            serve_http(req).await
+            serve_http(req, cache_clone).await
         }
     });
 
     Http::new()
-        .http1_only(true) // Şimdilik sadece HTTP/1.1
+        .http1_only(true)
         .serve_connection(stream, service)
         .await
         .context("Error serving HTTPS connection")?;

@@ -9,6 +9,7 @@ use serde::Deserialize;
 pub struct Settings {
     pub proxy: Proxy,
     pub certs: Certs,
+    pub cache: Cache,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -19,5 +20,10 @@ pub struct Proxy {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Certs {
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Cache {
     pub path: String,
 }

@@ -13,13 +13,12 @@ use tracing::{debug, info};
 /// Manages the root CA and generates leaf certificates for domains on the fly.
 pub struct CertificateAuthority {
     ca_cert: Certificate,
-    certs_path: PathBuf,
+    _certs_path: PathBuf,
     leaf_cache: Mutex<HashMap<String, Arc<ServerConfig>>>,
 }
 
 impl CertificateAuthority {
     /// Creates a new CertificateAuthority instance.
-    /// It loads an existing CA from the configured path or creates a new one if not found.
     pub fn new(path: &str) -> Result<Self> {
         let certs_path = Path::new(path);
         fs::create_dir_all(certs_path).context("Failed to create certificate directory")?;
@@ -54,14 +53,13 @@ impl CertificateAuthority {
 
         Ok(Self {
             ca_cert: cert,
-            certs_path: certs_path.to_path_buf(),
+            _certs_path: certs_path.to_path_buf(),
             leaf_cache: Mutex::new(HashMap::new()),
         })
     }
 
     /// Generates or retrieves a cached TLS server configuration for the given domain.
     pub fn get_server_config(&self, domain: &str) -> Result<Arc<ServerConfig>> {
-        // First, check in-memory cache
         let mut cache = self.leaf_cache.lock().unwrap();
         if let Some(config) = cache.get(domain) {
             debug!("Leaf certificate loaded from memory cache for: {}", domain);
@@ -94,7 +92,6 @@ impl CertificateAuthority {
             .with_no_client_auth()
             .with_single_cert(cert_chain, key)?;
         
-        // Enable HTTP/2 and HTTP/1.1
         config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
 
         let arc_config = Arc::new(config);

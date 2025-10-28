@@ -1,7 +1,0 @@
-[proxy]
-port = 3128
-bind_address = "127.0.0.1"
-
-[certs]
-# Sertifikaların nereye oluşturulacağı/okunacağı
-path = "./.certs"
