@@ -13,10 +13,6 @@ jobs:
   test_and_lint:
     name: Unit Test and Lint
     runs-on: ubuntu-latest
-    # Bu işteki tüm 'run' adımlarının projenin kök dizininde çalışmasını garantiler.
-    defaults:
-      run:
-        working-directory: .
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,10 +23,12 @@ jobs:
           components: clippy
 
       - name: Run linter (clippy)
-        run: cargo clippy --all-targets -- -D warnings
+        # --workspace flag'i, cargo'ya tüm workspace üyelerini kontrol etmesini söyler.
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run unit tests
-        run: cargo test --all-workspace
+        # --workspace flag'i, cargo'ya tüm workspace üyelerinin testlerini çalıştırmasını söyler.
+        run: cargo test --workspace
 
   integration_test:
     name: Integration Test
@@ -41,7 +39,6 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Run integration tests with Docker Compose
-        # Bu komutun 'tests' dizininde çalışması KRİTİKTİR.
         working-directory: ./tests
         run: docker-compose -f docker-compose.integration.yml up --build --exit-code-from tester
         
