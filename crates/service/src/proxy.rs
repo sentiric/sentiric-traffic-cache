@@ -84,9 +84,19 @@ async fn serve_http(
     req: Request<Body>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
-    info!("Handling HTTP request");
+    // 'Host' başlığından gerçek hedefi al.
+    let host = req.headers().get(hyper::header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
+    let uri_string = if !host.is_empty() && req.uri().authority().is_none() {
+        // Bu, şeffaf bir proxy isteğidir. URI'yi yeniden oluşturalım.
+        format!("http://{}{}", host, req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/"))
+    } else {
+        req.uri().to_string()
+    };
     
-    let cache_key = req.uri().to_string();
+    info!(target_uri = %uri_string, "Handling HTTP request");
+    
+    // DÜZELTME: cache_key'i ödünç almak yerine, string'in kendisi olarak tutuyoruz.
+    let cache_key = uri_string.clone();
 
     if let Some(cached_body) = cache.get(&cache_key).await {
         return Ok(Response::new(cached_body));
@@ -94,7 +104,18 @@ async fn serve_http(
     
     cache.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-    match downloader::forward_request(req).await {
+    // İsteği, potansiyel olarak yeniden oluşturulmuş URI ile klonla.
+    let mut builder = Request::builder()
+        .method(req.method().clone())
+        // DÜZELTME: 'uri_string'i taşımak yerine klonluyoruz.
+        .uri(&uri_string) 
+        .version(req.version());
+    *builder.headers_mut().unwrap() = req.headers().clone();
+    
+    // .body() metodu sahiplik aldığı için, `req.into_body()` kullanmak en temizidir.
+    let new_req = builder.body(req.into_body()).unwrap();
+
+    match downloader::forward_request(new_req).await {
         Ok(mut response) => {
             let body_stream = std::mem::replace(response.body_mut(), Body::empty());
             match cache.put_stream(cache_key, body_stream).await {
@@ -110,7 +131,7 @@ async fn serve_http(
         Err(e) => {
             error!("Failed to forward request: {}", e);
             let mut resp = Response::new(Body::from("Upstream request failed"));
-            *resp.status_mut() = http::StatusCode::BAD_REQUEST;
+            *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
             Ok(resp)
         }
     }
