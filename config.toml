@@ -1,6 +1,10 @@
 [proxy]
 port = 3128
-bind_address = "0.0.0.0" # Konteyner içinde her yerden dinlemesi için 0.0.0.0
+bind_address = "0.0.0.0"
+
+[management]
+port = 8080
+bind_address = "0.0.0.0"
 
 [certs]
 path = "./.certs"
