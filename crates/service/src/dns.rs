@@ -6,35 +6,34 @@ use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tracing::{debug, info};
 
-// DÜZELTME: Kütüphanenin yeni versiyonu için doğru modül yolları
+// DÜZELTME: Kütüphanenin yeni versiyonu için doğru ve tam modül yolları
 use trust_dns_server::authority::{
-    Authority, BoxAuthority, Catalog, LookupError, LookupObject, LookupOptions, LookupRecords,
-    Name, ZoneType,
+    Authority, BoxAuthority, Catalog, LookupError, LookupObject, LookupOptions,
 };
 use trust_dns_server::proto::op::ResponseCode;
-use trust_dns_server::proto::rr::{rdata, Record, RecordSet, RrKey};
-use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ServerFuture};
+use trust_dns_server::proto::rr::{rdata, LowerName, Name, Record, RecordSet, RecordType};
+use trust_dns_server::server::{Request, RequestHandler, RequestInfo, ResponseHandler, ServerFuture};
 
 /// Tüm DNS sorgularını yakalayan ve sabit bir IP adresiyle yanıtlayan
 /// bir DNS yetkili sunucusu.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InterceptAuthority {
     response_ip: IpAddr,
-    origin: Name,
+    origin: LowerName,
 }
 
 impl InterceptAuthority {
     pub fn new(response_ip: IpAddr) -> Self {
         Self {
             response_ip,
-            origin: Name::root(),
+            origin: LowerName::new(&Name::root()),
         }
     }
 }
 
 #[async_trait]
 impl Authority for InterceptAuthority {
-    type Lookup = LookupRecords;
+    type Lookup = LookupObject;
 
     fn zone_type(&self) -> ZoneType {
         ZoneType::Primary
@@ -46,56 +45,66 @@ impl Authority for InterceptAuthority {
 
     async fn update(
         &self,
-        _update: &trust_dns_server::proto::op::Message,
-    ) -> Result<bool, LookupError> {
+        _update: &trust_dns_server::authority::MessageRequest,
+    ) -> Result<bool, ResponseCode> {
         Ok(false)
     }
 
-    fn origin(&self) -> &Name {
+    fn origin(&self) -> &LowerName {
         &self.origin
     }
 
-    // DÜZELTME: Yeni `search` fonksiyonu, `lookup`'ın yerini aldı.
-    async fn search(
+    // DÜZELTME: `search`'ün yerini alan yeni `lookup` fonksiyonu
+    async fn lookup(
         &self,
-        request_info: trust_dns_server::server::RequestInfo<'_>,
+        name: &LowerName,
+        query_type: RecordType,
         _lookup_options: LookupOptions,
     ) -> Result<Self::Lookup, LookupError> {
-        let name = request_info.query.name();
-        let query_type = request_info.query.query_type();
-        debug!("Intercepting DNS lookup for: {} ({})", name, query_type);
+        info!("Intercepting DNS lookup for: {} ({})", name, query_type);
 
-        let mut records = RecordSet::new(name, query_type, 0);
+        let mut record_set = RecordSet::new(name.into(), query_type, 0);
 
         match (query_type, self.response_ip) {
             (RecordType::A, IpAddr::V4(ipv4)) => {
                 let rdata = rdata::A(ipv4);
-                let mut record = Record::with(name.clone(), RecordType::A, 60);
-                record.set_rdata(rdata.into());
-                records.add_rdata(record.rdata().clone());
-                records.set_ttl(60);
+                let mut record = Record::with(name.into(), RecordType::A, 60);
+                record.set_data(Some(rdata.into()));
+                record_set.insert(record, 0);
             }
             (RecordType::AAAA, IpAddr::V6(ipv6)) => {
                 let rdata = rdata::AAAA(ipv6);
-                let mut record = Record::with(name.clone(), RecordType::AAAA, 60);
-                record.set_rdata(rdata.into());
-                records.add_rdata(record.rdata().clone());
-                records.set_ttl(60);
+                let mut record = Record::with(name.into(), RecordType::AAAA, 60);
+                record.set_data(Some(rdata.into()));
+                record_set.insert(record, 0);
             }
             _ => (),
         }
 
-        if records.is_empty() {
+        if record_set.is_empty() {
             return Err(LookupError::from(ResponseCode::NXDomain));
         }
 
-        Ok(LookupObject::new(Arc::new(records)).into())
+        Ok(LookupObject::new(Arc::new(record_set)))
     }
 
     // DÜZELTME: Diğer gerekli trait metodları için varsayılan implementasyonlar
+    async fn search(
+        &self,
+        request_info: RequestInfo<'_>,
+        lookup_options: LookupOptions,
+    ) -> Result<Self::Lookup, LookupError> {
+        self.lookup(
+            request_info.query.name(),
+            request_info.query.query_type(),
+            lookup_options,
+        )
+        .await
+    }
+    
     async fn get_nsec_records(
         &self,
-        _name: &Name,
+        _name: &LowerName,
         _lookup_options: LookupOptions,
     ) -> Result<Self::Lookup, LookupError> {
         Err(LookupError::from(ResponseCode::Refused))
@@ -110,8 +119,8 @@ pub struct DnsHandler {
 
 #[async_trait]
 impl RequestHandler for DnsHandler {
-    async fn handle_request<H: ResponseHandler>(&self, request: &Request, mut response_handle: H) {
-        let result = self.catalog.handle_request(request).await;
+    async fn handle_request<H: ResponseHandler>(&self, request: &Request, response_handle: H) {
+        let result = self.catalog.handle_request(request, Default::default()).await;
         if let Err(e) = response_handle.send_response(result).await {
             info!("error sending DNS response: {}", e);
         }
@@ -126,7 +135,7 @@ pub async fn run_server(settings: &Settings) -> Result<()> {
     let authority = InterceptAuthority::new(settings.dns.response_ip);
     let mut catalog = Catalog::new();
     catalog.upsert(
-        Name::root().into(),
+        LowerName::new(&Name::root()),
         Box::new(Arc::new(authority)) as BoxAuthority,
     );
 
