@@ -8,15 +8,28 @@ on:
   workflow_call:
 
 jobs:
-  #########################################
-  # 1. Backend Lint ve Unit Testleri      #
-  #########################################
   backend_tests:
     name: Backend Lint & Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      # DÜZELTME: Tauri'nin sistem bağımlılıklarını kuruyoruz.
+      - name: Install Tauri system dependencies (for Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -26,9 +39,6 @@ jobs:
       - name: Run unit tests
         run: cargo test --workspace
 
-  #########################################
-  # 2. Frontend Lint ve Build Testi       #
-  #########################################
   frontend_build:
     name: Frontend Build & Lint
     runs-on: ubuntu-latest
@@ -45,18 +55,13 @@ jobs:
           npm ci
           npm run build
 
-  #########################################
-  # 3. Tam Entegrasyon Testi              #
-  #########################################
   integration_test:
     name: Integration Test
     runs-on: ubuntu-latest
-    # Önceki iki adım başarılı olursa çalış
     needs: [backend_tests, frontend_build]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
       - name: Run End-to-End tests
         working-directory: ./tests
         run: docker compose -f docker-compose.integration.yml up --build --exit-code-from tester
