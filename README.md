@@ -1,5 +1,7 @@
 # 🚀 sentiric-traffic-cache
 
+[![Continuous Integration & Delivery](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml)
+
 **The Invisible Network Assistant.** An intelligent, universal caching layer designed to accelerate development workflows and simplify network management.
 
 > This project is being built based on the vision defined in [docs/PROJECT_GENESIS.md](docs/PROJECT_GENESIS.md).

@@ -13,32 +13,41 @@ jobs:
   test_and_lint:
     name: Unit Test and Lint
     runs-on: ubuntu-latest
+    # Bu işteki tüm 'run' adımlarının projenin kök dizininde çalışmasını garantiler.
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
       - name: Run linter (clippy)
         run: cargo clippy --all-targets -- -D warnings
+
       - name: Run unit tests
         run: cargo test --all-workspace
 
   integration_test:
     name: Integration Test
     runs-on: ubuntu-latest
-    # Unit testler başarılı olursa çalışsın
     needs: test_and_lint
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        
       - name: Run integration tests with Docker Compose
-        run: docker-compose -f ./tests/docker-compose.integration.yml up --build --exit-code-from tester
+        # Bu komutun 'tests' dizininde çalışması KRİTİKTİR.
+        working-directory: ./tests
+        run: docker-compose -f docker-compose.integration.yml up --build --exit-code-from tester
         
   build_and_push_image:
     name: Build and Push Docker Image
-    needs: integration_test # Entegrasyon testleri de başarılı olursa çalışsın
+    needs: integration_test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -47,17 +56,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
