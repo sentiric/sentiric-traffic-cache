@@ -1,14 +1,14 @@
 # --- Adım 1: Dependency Planner ---
-# DÜZELTME: Rust sürümünü en güncel kararlı sürüme yükseltiyoruz.
-FROM rust:stable AS planner 
+# DÜZELTME: Doğru etiket olan 'latest' kullanılıyor.
+FROM rust:latest AS planner 
 WORKDIR /app
 COPY Cargo.toml ./
 COPY crates crates
 RUN cargo fetch
 
 # --- Adım 2: Builder ---
-# DÜZELTME: Rust sürümünü en güncel kararlı sürüme yükseltiyoruz.
-FROM rust:stable AS builder
+# DÜZELTME: Doğru etiket olan 'latest' kullanılıyor.
+FROM rust:latest AS builder
 WORKDIR /app
 
 COPY --from=planner /app/Cargo.lock ./
