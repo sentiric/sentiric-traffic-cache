@@ -8,7 +8,6 @@ services:
       - ../config.toml:/app/config.toml
     networks:
       - testnet
-    # Healthcheck'i kaldırıyoruz. Bekleme mantığını tamamen test-runner.sh'e bırakıyoruz.
 
   tester:
     build:
@@ -21,9 +20,8 @@ services:
     command: /test-runner.sh
     networks:
       - testnet
-    # Sadece 'app' servisinin başlamasını bekle, sağlıklı olmasını değil.
     depends_on:
       - app
-
-networks:
-  testnet:
+    # DÜZELTME: Docker soketini bağlıyoruz.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
