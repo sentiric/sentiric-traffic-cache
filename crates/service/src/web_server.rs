@@ -4,7 +4,6 @@ use warp::http::header::HeaderValue;
 use warp::Filter;
 use hyper::Body;
 
-// #[derive(RustEmbed)] macro'su, bu struct'a 'get' gibi statik metodlar ekler.
 #[derive(RustEmbed)]
 #[folder = "web/dist/"]
 struct WebAssets;
@@ -23,7 +22,7 @@ async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, 
         path.as_str()
     };
     
-    // DÜZELTME: Doğrudan ve en basit şekilde `get` metodunu çağırıyoruz.
+    // Artık 'derive' özelliği sayesinde bu basit kullanımın çalışması gerekiyor.
     match WebAssets::get(path) {
         Some(content) => {
             let mime = mime_guess::from_path(path).first_or_octet_stream();

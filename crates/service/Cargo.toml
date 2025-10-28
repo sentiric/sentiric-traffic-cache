@@ -18,10 +18,11 @@ config = "0.13.3"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 # Web Sunucusu & API
-warp = { version = "0.3.5", features = ["websocket"] }
+warp = { version = "0.3.7" } # websocket özelliği varsayılan olarak gelir
 serde_json = "1.0.96"
 serde = { version = "1.0.163", features = ["derive"] }
-rust-embed = { version = "8.0.0", optional = true }
+# DÜZELTME: `derive` özelliğini açıkça istiyoruz.
+rust-embed = { version = "8.0.0", features = ["derive"], optional = true }
 mime_guess = { version = "2.0.4", optional = true }
 
 # Proxy Motoru
@@ -42,4 +43,5 @@ tokio-util = { version = "0.7.8", features = ["codec", "io"] }
 bytes = "1.5.0"
 
 [features]
+# 'web' feature'ı, rust-embed ve mime_guess'i aktive eder.
 web = ["rust-embed", "mime_guess"]
