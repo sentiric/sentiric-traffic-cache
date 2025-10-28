@@ -2,7 +2,7 @@ use crate::cache::CacheManager;
 use anyhow::Result;
 use futures_util::{StreamExt, SinkExt};
 use sentiric_core::Stats;
-use std::net::SocketAddr;
+// use std::net::SocketAddr; // <--- KALDIRILDI
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use warp::ws::{Message, WebSocket};
