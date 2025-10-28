@@ -1,37 +1,38 @@
-# --- Adım 1: Builder ---
-# Kodumuzu derlemek için Rust'ın resmi imajını kullanıyoruz.
-# Dockerfile yazım kurallarına uygun olarak büyük harf kullanıyoruz.
-FROM rust:1.78 AS builder
+# --- Adım 1: Dependency Planner ---
+# Bu ara katman, sadece Cargo.lock dosyasını oluşturmak için kullanılır.
+FROM rust:1.78 AS planner
+WORKDIR /app
+COPY Cargo.toml ./
+COPY crates crates
+# Bu komut, Cargo.toml'a göre bağımlılıkları çözer ve Cargo.lock oluşturur.
+# Ancak tam bir derleme yapmadığı için daha hızlıdır.
+RUN cargo fetch
 
+# --- Adım 2: Builder ---
+# Bu katman, asıl derleme işlemini yapar.
+FROM rust:1.78 AS builder
 WORKDIR /app
 
-# Sadece bağımlılık tanımlarını kopyala.
-COPY Cargo.toml Cargo.lock ./
+# Planner'dan Cargo.lock dosyasını ve önceden indirilmiş bağımlılıkları kopyala.
+# Bu, 'cargo build' komutunun ağa çıkmasını engeller ve hızı artırır.
+COPY --from=planner /app/Cargo.lock ./
+COPY --from=planner /usr/local/cargo/registry /usr/local/cargo/registry
+COPY Cargo.toml ./
 COPY crates crates
 
-# Bağımlılıkları önceden derle. Bu, Docker katman önbelleğini en verimli
-# şekilde kullanır. Sadece bağımlılıklar değiştiğinde bu adım yeniden çalışır.
-# Önce boş bir src oluşturarak sadece bağımlılıkların derlenmesini sağlıyoruz.
-RUN mkdir -p crates/cli/src && echo "fn main() {}" > crates/cli/src/main.rs
-RUN cargo build --workspace --release
+# Sadece cli paketini derle. Bu, Docker katman önbelleğini en iyi şekilde kullanır.
+RUN cargo build -p sentiric-cli --release
 
-# Şimdi asıl kodumuzu kopyala. Sadece kod değiştiğinde bu adım çalışır.
-COPY crates crates
-# Önbelleği temizle ve sadece cli paketini yeniden derle. Bu, en güncel kodun
-# kullanılmasını garanti eder ve daha hızlıdır.
-RUN cargo clean -p sentiric-cli && cargo build -p sentiric-cli --release
-
-# --- Adım 2: Runner ---
+# --- Adım 3: Runner ---
 # Sonuç imajımız, çok daha küçük olan Debian "slim" tabanlı olacak.
 FROM debian:bookworm-slim
 
-# HTTPS bağlantıları için gerekli olan kök sertifikaları kur.
+# Gerekli runtime bağımlılıkları
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Builder aşamasında derlediğimiz tek çalıştırılabilir dosyayı kopyala.
-# Derlenen dosyanın tam yolunu belirtiyoruz.
 COPY --from=builder /app/target/release/sentiric-cli /usr/local/bin/sentiric-cli
 
 # Uygulamanın çalışması için gerekli olan config dosyasını kopyala.
