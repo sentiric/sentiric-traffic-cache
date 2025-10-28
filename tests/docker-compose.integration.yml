@@ -1,23 +1,32 @@
-services:
-app:
-  build:
-    context: ..
-    dockerfile: ../Dockerfile
-  container_name: sentiric-app-test
-  # Test ortamında sertifikalar ve cache kalıcı olmasın
-  volumes:
-    - ../config.toml:/app/config.toml
+# Docker Compose dosya formatının sürümünü belirtir.
+version: '3.8'
 
-tester:
-  build:
-    context: . # Bu dizindeki Dockerfile.tester kullanılacak
-    dockerfile: Dockerfile.tester
-  container_name: sentiric-tester
-  # Proxy'mize app servis adı üzerinden erişecek
-  environment:
-    - http_proxy=http://app:3128
-    - https_proxy=http://app:3128
-  # Test script'ini çalıştır
-  command: /test-runner.sh
-  depends_on:
-    - app
+# Tüm servisler bu anahtar kelimenin altında ve girintili olarak tanımlanmalıdır.
+services:
+  # 'app' adında ilk servisimiz. 'app' kelimesi 'services'e göre 2 boşluk içeride olmalı.
+  app:
+    build:
+      # Build context'i, bu dosyanın bir üst dizinidir (proje kökü).
+      context: ..
+      # Proje kökündeki Dockerfile'ı kullan.
+      dockerfile: ../Dockerfile
+    container_name: sentiric-app-test
+    volumes:
+      - ../config.toml:/app/config.toml
+
+  # 'tester' adında ikinci servisimiz. 'app' ile aynı girinti seviyesinde olmalı.
+  tester:
+    build:
+      # Build context'i, bu dosyanın bulunduğu dizindir (tests/).
+      context: .
+      # tests/ dizinindeki Dockerfile.tester'ı kullan.
+      dockerfile: Dockerfile.tester
+    container_name: sentiric-tester
+    environment:
+      - http_proxy=http://app:3128
+      - https_proxy=http://app:3128
+    # Test script'ini çalıştır.
+    command: /test-runner.sh
+    # 'tester' servisi, 'app' servisi başladıktan sonra başlasın.
+    depends_on:
+      - app
