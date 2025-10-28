@@ -9,12 +9,17 @@ use warp::ws::{Message, WebSocket};
 use warp::Filter;
 use serde::Serialize;
 use tracing::info;
-use rust_embed::RustEmbed; // <--- EKLENDİ
-use std::borrow::Cow; // <--- EKLENDİ
-use warp::http::header::HeaderValue; // <--- EKLENDİ
 
-// Bu macro, derleme sırasında `web/dist` klasöründeki tüm dosyaları
-// binary'nin içine gömer.
+// Koşullu derleme: Sadece 'test' olmayan build'lerde rust-embed'i kullan.
+#[cfg(not(test))]
+use {
+    rust_embed::RustEmbed,
+    std::borrow::Cow,
+    warp::http::header::HeaderValue,
+};
+
+// 'test' olmayan build'ler için
+#[cfg(not(test))]
 #[derive(RustEmbed)]
 #[folder = "web/dist/"]
 struct WebAssets;
@@ -42,31 +47,30 @@ pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()
 
     let events_route = warp::path!("api" / "events")
         .and(warp::ws())
-        .map(|ws: warp::ws::Ws| {
-            ws.on_upgrade(handle_websocket_connection)
-        });
+        .map(|ws: warp::ws::Ws| ws.on_upgrade(handle_websocket_connection));
     
-    // API rotalarını birleştir
     let api_routes = stats_route.or(events_route);
 
-    // Statik dosya sunucusu rotası
-    let static_files = warp::get().and(warp::path::tail()).and_then(serve_static_files);
+    // Koşullu derleme: `cargo test` sırasında statik dosya sunucusu devre dışı.
+    #[cfg(not(test))]
+    let routes = {
+        let static_files = warp::get().and(warp::path::tail()).and_then(serve_static_files);
+        api_routes.or(static_files)
+    };
     
-    // Tüm rotaları birleştir. Önce API, sonra statik dosyalar.
-    let routes = api_routes.or(static_files);
+    // `cargo test` sırasında sadece API rotaları aktif.
+    #[cfg(test)]
+    let routes = api_routes;
 
     warp::serve(routes).run(addr).await;
 
     Ok(())
 }
 
-// Statik dosyaları sunan fonksiyon
+// Bu fonksiyon sadece 'test' olmayan build'lerde derlenecek.
+#[cfg(not(test))]
 async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, warp::Rejection> {
-    let path = if path.as_str().is_empty() {
-        "index.html"
-    } else {
-        path.as_str()
-    };
+    let path = if path.as_str().is_empty() { "index.html" } else { path.as_str() };
     
     match WebAssets::get(path) {
         Some(content) => {
@@ -75,8 +79,6 @@ async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, 
             res.headers_mut().insert("content-type", HeaderValue::from_str(mime.as_ref()).unwrap());
             Ok(res)
         }
-        // Eğer dosya bulunamazsa, SPA (Single Page Application) yönlendirmesi için
-        // her zaman index.html'i döndür.
         None => match WebAssets::get("index.html") {
             Some(content) => {
                 let mime = mime_guess::from_path("index.html").first_or_octet_stream();
