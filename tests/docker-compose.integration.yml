@@ -1,7 +1,6 @@
 services:
   app:
     build:
-      # DÜZELTME: Build context'ini ve Dockerfile yolunu doğru şekilde belirtiyoruz.
       context: ..
       dockerfile: Dockerfile
     container_name: sentiric-app-test
@@ -9,11 +8,7 @@ services:
       - ../config.toml:/app/config.toml
     networks:
       - testnet
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/stats"]
-      interval: 2s
-      timeout: 5s
-      retries: 15
+    # Healthcheck'i kaldırıyoruz. Bekleme mantığını tamamen test-runner.sh'e bırakıyoruz.
 
   tester:
     build:
@@ -26,9 +21,9 @@ services:
     command: /test-runner.sh
     networks:
       - testnet
+    # Sadece 'app' servisinin başlamasını bekle, sağlıklı olmasını değil.
     depends_on:
-      app:
-        condition: service_healthy
+      - app
 
 networks:
   testnet:
