@@ -2,30 +2,47 @@
 set -e # Herhangi bir komut hata verirse script'i durdur
 set -x # Çalışan komutları ekrana yaz
 
-echo "--- Waiting for proxy to be ready ---"
-# Basit bir bekleme mekanizması
-sleep 5
-
+# Değişkenler
+APP_HOST="app"
+PROXY_URL="http://${APP_HOST}:3128"
+MGMT_URL="http://${APP_HOST}:8080"
 TEST_URL="http://cachefly.cachefly.net/10mb.test"
 OUTPUT_FILE="/dev/null"
 
+echo "--- Waiting for management API to be ready ---"
+# API'nin cevap vermesini bekle (maksimum 30 saniye)
+timeout 30s bash -c 'until curl -s -f ${MGMT_URL}/api/stats > /dev/null; do echo "Waiting for API..." && sleep 1; done'
+
+echo "--- API is ready. Starting E2E tests. ---"
+
+# --- Test 1: Cache Miss Senaryosu ---
 echo "--- Running Cache MISS test ---"
-# İlk istek, cache boş olmalı
-time curl -s -L $TEST_URL -o $OUTPUT_FILE
+# Proxy üzerinden ilk isteği gönder
+curl -s -L --proxy ${PROXY_URL} ${TEST_URL} -o ${OUTPUT_FILE}
 
-echo "--- Running Cache HIT test ---"
-# İkinci istek, cache'den gelmeli ve çok daha hızlı olmalı
-# `time` komutunun çıktısını bir dosyaya yazıp karşılaştıracağız
-time (curl -s -L $TEST_URL -o $OUTPUT_FILE) 2> time_output.txt
-
-# Cache hit süresinin 1 saniyeden az olduğunu varsayıyoruz.
-# Bu basit bir kontrol, daha sonra geliştirilebilir.
-if grep -q "real\s*0m0" time_output.txt; then
-    echo "--- SUCCESS: Cache HIT was fast as expected! ---"
-else
-    echo "--- FAILURE: Cache HIT was too slow! ---"
-    cat time_output.txt
+# API'den istatistikleri al ve 'misses' sayacını kontrol et
+misses=$(curl -s ${MGMT_URL}/api/stats | jq '.misses')
+if [ "${misses}" -ne 1 ]; then
+    echo "--- FAILURE: Expected 1 miss, but got ${misses} ---"
     exit 1
 fi
+echo "--- SUCCESS: Cache MISS validated. ---"
 
-echo "--- ALL INTEGRATION TESTS PASSED ---"
+
+# --- Test 2: Cache Hit Senaryosu ---
+echo "--- Running Cache HIT test ---"
+# Proxy üzerinden ikinci isteği gönder
+curl -s -L --proxy ${PROXY_URL} ${TEST_URL} -o ${OUTPUT_FILE}
+
+# API'den istatistikleri al ve 'hits' sayacını kontrol et
+hits=$(curl -s ${MGMT_URL}/api/stats | jq '.hits')
+if [ "${hits}" -ne 1 ]; then
+    echo "--- FAILURE: Expected 1 hit, but got ${hits} ---"
+    exit 1
+fi
+echo "--- SUCCESS: Cache HIT validated. ---"
+
+
+# --- Sonuç ---
+echo "--- ALL END-TO-END TESTS PASSED ---"
+exit 0
