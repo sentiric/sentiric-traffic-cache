@@ -3,24 +3,26 @@ use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 use tracing::info;
 use trust_dns_server::authority::MessageResponseBuilder;
-use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ServerFuture};
+use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo, ServerFuture};
 
 pub struct DnsHandler;
 
 #[async_trait::async_trait]
 impl RequestHandler for DnsHandler {
+    // DÜZELTME: Fonksiyonun geri dönüş tipini 'ResponseInfo' olarak değiştiriyoruz.
     async fn handle_request<H: ResponseHandler>(
         &self,
         request: &Request,
-        mut response_handle: H, // <--- DÜZELTME: 'mut' eklendi
-    ) -> std::io::Result<()> {
+        mut response_handle: H,
+    ) -> ResponseInfo {
         info!("Received DNS request for: {:?}", request.query().name());
 
         let builder = MessageResponseBuilder::from_message_request(request);
         let response = builder.error_msg(request.header(), trust_dns_server::proto::op::ResponseCode::NXDomain);
-
-        // DÜZELTME: Kütüphane artık doğrudan Result<(), io::Error> bekliyor.
-        response_handle.send_response(response).await
+        
+        // DÜZELTME: 'send_response' zaten 'ResponseInfo' döndürüyor.
+        // `await`'ten sonra gelen `Result`'ı açıp (unwrap) doğrudan döndürüyoruz.
+        response_handle.send_response(response).await.unwrap()
     }
 }
 
