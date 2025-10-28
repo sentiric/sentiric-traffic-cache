@@ -2,28 +2,25 @@ use anyhow::Result;
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 use tracing::info;
-// DÜZELTME: Sadece kullandığımız modülleri import ediyoruz.
 use trust_dns_server::authority::MessageResponseBuilder;
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ServerFuture};
 
 pub struct DnsHandler;
 
-// DÜZELTME: `async_trait` macro'sunu doğru şekilde kullanıyoruz.
 #[async_trait::async_trait]
 impl RequestHandler for DnsHandler {
-    // DÜZELTME: Fonksiyon imzasını, trait'in beklediği tam formata getiriyoruz.
     async fn handle_request<H: ResponseHandler>(
         &self,
         request: &Request,
-        response_handle: H,
+        mut response_handle: H, // <--- DÜZELTME: 'mut' eklendi
     ) -> std::io::Result<()> {
-        info!("Received DNS request: {:?}", request.query().name());
-        
+        info!("Received DNS request for: {:?}", request.query().name());
+
         let builder = MessageResponseBuilder::from_message_request(request);
         let response = builder.error_msg(request.header(), trust_dns_server::proto::op::ResponseCode::NXDomain);
-        
-        // DÜZELTME: `send_response`'un sonucunu `map` ile doğru tipe dönüştürüyoruz.
-        response_handle.send_response(response).await.map(|_| ())
+
+        // DÜZELTME: Kütüphane artık doğrudan Result<(), io::Error> bekliyor.
+        response_handle.send_response(response).await
     }
 }
 

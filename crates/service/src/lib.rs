@@ -10,7 +10,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
-// use warp::Filter; // <-- KALDIRILDI
 
 // Modülleri tanımlıyoruz
 pub mod cache;
@@ -21,6 +20,7 @@ pub mod dns;
 pub mod management;
 pub mod proxy;
 
+// DÜZELTME: web_server modülünü 'web' feature'ı arkasına geri koyuyoruz.
 #[cfg(feature = "web")]
 pub mod web_server;
 
