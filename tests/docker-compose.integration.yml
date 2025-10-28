@@ -1,24 +1,38 @@
 services:
   app:
     build:
-      # Build context'i, bu dosyanın bir üst dizinidir (proje kökü).
       context: ..
-      # Proje kökündeki ana Dockerfile'ı kullan. 'dockerfile' yolu, 'context'e görecelidir.
-      dockerfile: Dockerfile # <--- DÜZELTME BURADA
+      dockerfile: ../Dockerfile
     container_name: sentiric-app-test
     volumes:
       - ../config.toml:/app/config.toml
+    # DÜZELTME: Konteynerin bu ağa dahil olmasını sağlıyoruz.
+    networks:
+      - testnet
+    # DÜZELTME: Sağlık kontrolü ekliyoruz.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/stats"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
   tester:
     build:
-      # Build context'i, bu dosyanın bulunduğu dizindir (tests/).
       context: .
-      # tests/ dizinindeki Dockerfile.tester'ı kullan.
       dockerfile: Dockerfile.tester
     container_name: sentiric-tester
     environment:
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
     command: /test-runner.sh
+    # DÜZELTME: Konteynerin bu ağa dahil olmasını sağlıyoruz.
+    networks:
+      - testnet
+    # DÜZELTME: 'app' servisinin sadece başlamasını değil, 'healthy' olmasını bekle.
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+
+# DÜZELTME: Servislerin birbirleriyle konuşacağı ortak ağı tanımlıyoruz.
+networks:
+  testnet:
