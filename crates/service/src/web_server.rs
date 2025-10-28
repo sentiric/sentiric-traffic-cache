@@ -2,6 +2,7 @@ use rust_embed::RustEmbed;
 use std::borrow::Cow;
 use warp::http::header::HeaderValue;
 use warp::Filter;
+use hyper::Body; // <--- EKLENDİ
 
 #[derive(RustEmbed)]
 #[folder = "web/dist/"]
@@ -24,14 +25,18 @@ async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, 
     match WebAssets::get(path) {
         Some(content) => {
             let mime = mime_guess::from_path(path).first_or_octet_stream();
-            let mut res = warp::reply::Response::new(Cow::from(content.data).into());
+            // DÜZELTME: `.into()` yerine doğrudan Body::from kullanıyoruz.
+            let body = Body::from(content.data);
+            let mut res = warp::reply::Response::new(body);
             res.headers_mut().insert("content-type", HeaderValue::from_str(mime.as_ref()).unwrap());
             Ok(res)
         }
         None => match WebAssets::get("index.html") {
             Some(content) => {
                 let mime = mime_guess::from_path("index.html").first_or_octet_stream();
-                let mut res = warp::reply::Response::new(Cow::from(content.data).into());
+                // DÜZELTME: `.into()` yerine doğrudan Body::from kullanıyoruz.
+                let body = Body::from(content.data);
+                let mut res = warp::reply::Response::new(body);
                 res.headers_mut().insert("content-type", HeaderValue::from_str(mime.as_ref()).unwrap());
                 Ok(res)
             }
