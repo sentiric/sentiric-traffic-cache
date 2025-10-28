@@ -1,20 +1,12 @@
-// File: web/src/app.tsx
 import { ComponentChild } from 'preact';
 import { useState } from 'preact/hooks';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
-import { Network } from './pages/Network';
-import { Cache } from './pages/Cache';
-import { Setup } from './pages/Setup';
 
-type PageComponent = () => ComponentChild;
-type Page = 'dashboard' | 'network' | 'cache' | 'setup';
-
-const pageComponents: Record<Page, PageComponent> = {
+// Şimdilik sadece Dashboard var.
+type Page = 'dashboard';
+const pageComponents: Record<Page, () => ComponentChild> = {
   dashboard: Dashboard,
-  network: Network,
-  cache: Cache,
-  setup: Setup,
 };
 
 export function App() {
