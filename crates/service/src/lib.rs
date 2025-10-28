@@ -10,7 +10,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
-// use warp::Filter; // <--- KALDIRILDI
 
 // Modülleri tanımlıyoruz
 pub mod cache;
@@ -19,9 +18,6 @@ pub mod config;
 pub mod downloader;
 pub mod management;
 pub mod proxy;
-
-#[cfg(feature = "web")]
-pub mod web_server;
 
 pub async fn run() -> Result<()> {
     let subscriber = FmtSubscriber::builder().with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?)).with_thread_ids(true).finish();
@@ -37,34 +33,12 @@ pub async fn run() -> Result<()> {
     // --- GÖREVLERİ OLUŞTUR ---
 
     let proxy_addr: SocketAddr = format!("{}:{}", settings.proxy.bind_address, settings.proxy.port).parse()?;
-    // DÜZELTME: proxy_task için cache_manager'ı klonluyoruz.
     let proxy_task = tokio::spawn(proxy::run_server(proxy_addr, ca, cache_manager.clone()));
 
-    // Yönetim sunucusu görevi
     let mgmt_addr: SocketAddr = format!("{}:{}", settings.management.bind_address, settings.management.port).parse()?;
-    // DÜZELTME: mgmt_task için cache_manager'ı klonluyoruz.
-    let mgmt_cache_clone = cache_manager.clone();
-    let mgmt_task = tokio::spawn(async move {
-        info!("🚀 Management server listening on http://{}", mgmt_addr);
-        
-        let api = management::api_routes(mgmt_cache_clone);
+    let mgmt_task = tokio::spawn(management::run_server(mgmt_addr, cache_manager.clone()));
 
-        #[cfg(feature = "web")]
-        {
-            use warp::Filter;
-            let routes = api.or(web_server::static_files());
-            warp::serve(routes).run(mgmt_addr).await;
-        }
-
-        #[cfg(not(feature = "web"))]
-        {
-            warp::serve(api).run(mgmt_addr).await;
-        }
-    });
-
-    // İstatistikleri periyodik olarak yayınlayan görev
     let stats_broadcaster_task = tokio::spawn(async move {
-        // 'cache_manager' artık bu task'e aittir.
         loop {
             let stats = cache_manager.get_stats().await;
             let _ = EVENT_BROADCASTER.send(management::WsEvent::StatsUpdated(stats));
@@ -76,7 +50,6 @@ pub async fn run() -> Result<()> {
     tokio::select! {
         _ = tokio::signal::ctrl_c() => { info!("Shutdown signal received."); }
         res = proxy_task => { if let Err(e) = res? { error!("Proxy server exited: {}", e); } }
-        // DÜZELTME: Kullanılmayan değişkeni _ ile işaretliyoruz.
         _res = mgmt_task => { error!("Management server exited."); }
         _ = stats_broadcaster_task => { info!("Stats broadcaster exited."); }
     }
