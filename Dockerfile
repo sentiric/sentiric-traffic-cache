@@ -23,9 +23,8 @@ COPY --from=planner /app/Cargo.lock ./
 COPY --from=planner /usr/local/cargo/registry /usr/local/cargo/registry
 COPY Cargo.toml ./
 COPY crates crates
-# Sadece cli paketini derle.
-RUN cargo build -p sentiric-cli --release
-
+# Sadece cli paketini derle ve 'web' feature'ını aktive et.
+RUN cargo build -p sentiric-cli --release --features sentiric-service/web
 # --- Adım 3: Runner ---
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
