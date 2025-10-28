@@ -4,7 +4,11 @@ services:
       context: ..
       dockerfile: Dockerfile
     container_name: sentiric-app-test
-    volumes:
+    ports:
+      - "3128:3128"
+      - "8080:8080" # Yönetim arayüzü
+      - "53:53/udp" # DNS eklendiğinde bu satırı açacağız.      
+    volumes:    
       - ../config.toml:/app/config.toml
     networks:
       - testnet

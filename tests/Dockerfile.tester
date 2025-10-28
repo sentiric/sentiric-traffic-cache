@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
-# DÜZELTME: docker-ce-cli'yi kuruyoruz.
+# DÜZELTME: DNS testi için 'dnsutils' ekliyoruz.
 RUN apt-get update && \
-    apt-get install -y curl time jq apt-transport-https ca-certificates gnupg && \
+    apt-get install -y curl time jq apt-transport-https ca-certificates gnupg dnsutils && \
     install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     chmod a+r /etc/apt/keyrings/docker.gpg && \
