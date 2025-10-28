@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use bytes::Bytes;
+// bytes::Bytes'ı kaldırdık çünkü chunk zaten o tipte.
 use futures_util::StreamExt;
 use hyper::body::{Body, Sender};
 use std::path::{Path, PathBuf};
@@ -41,8 +41,7 @@ impl CacheManager {
     /// Caches a response body to disk while streaming it to the client.
     #[instrument(skip(self, body_stream))]
     pub async fn put_stream(&self, key: String, body_stream: Body) -> Result<Body> {
-        // 'mut tx' idi, 'tx' olarak değiştirildi.
-        let (tx, body_for_client) = Body::channel(); // <--- DÜZELTME BURADA
+        let (tx, body_for_client) = Body::channel();
         let path = self.key_to_path(&key);
 
         tokio::spawn(async move {
@@ -70,7 +69,8 @@ impl CacheManager {
             file.write_all(&chunk).await.context("Failed to write to cache file")?;
             total_bytes += chunk.len();
             
-            let _ = tx.send_data(Bytes::from(chunk)).await;
+            // DÜZELTME BURADA: Gereksiz Bytes::from() kaldırıldı.
+            let _ = tx.send_data(chunk).await;
         }
 
         info!("CACHE PUT: {} ({} bytes)", key, total_bytes);

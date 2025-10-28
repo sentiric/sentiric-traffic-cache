@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-use tracing::{error, info, instrument, warn, Instrument}; // <--- Instrument EKLENDİ
+use tracing::{error, info, instrument, warn, Instrument};
 
 /// Ana proxy sunucusunu çalıştırır.
 pub async fn run_server(
@@ -129,8 +129,9 @@ async fn serve_https(
     cache: Arc<CacheManager>,
 ) -> Result<()> {
     info!("Handling CONNECT request, performing TLS handshake");
+    // DÜZELTME BURADA: Gereksiz `&` kaldırıldı.
     let server_config = ca
-        .get_server_config(&host.split(':').next().unwrap_or(&host))
+        .get_server_config(host.split(':').next().unwrap_or(&host))
         .context("Failed to get server config for domain")?;
     
     let acceptor = TlsAcceptor::from(server_config);
