@@ -16,13 +16,15 @@ echo "--- Services are healthy. Starting E2E tests. ---"
 # --- Test 0: DNS Sunucusunu Test Et ---
 echo "--- Running DNS server test ---"
 # 'dig' komutu ile 'google.com' adresini 'app' konteynerine sor
-# Cevabın 'NXDOMAIN' içerdiğini doğrula
-if ! dig @${APP_HOST} google.com | grep "status: NXDOMAIN"; then
-    echo "--- FAILURE: DNS server did not respond with NXDOMAIN! ---"
-    dig @${APP_HOST} google.com # Hata durumunda tam çıktıyı göster
+# Cevabın '127.0.0.1' içerdiğini doğrula
+dig_output=$(dig @${APP_HOST} google.com)
+echo "${dig_output}" # Hata ayıklama için çıktıyı göster
+
+if ! echo "${dig_output}" | grep -E "google\.com\.\s+60\s+IN\s+A\s+127\.0\.0\.1"; then
+    echo "--- FAILURE: DNS server did not respond with 127.0.0.1! ---"
     exit 1
 fi
-echo "--- SUCCESS: DNS server validated. ---"
+echo "--- SUCCESS: Smart DNS server validated. ---"
 
 
 # Testten önce istatistiklerin sıfır olduğundan emin olalım.

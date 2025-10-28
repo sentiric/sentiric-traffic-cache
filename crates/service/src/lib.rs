@@ -59,8 +59,13 @@ pub async fn run() -> Result<()> {
     });
 
     let dns_task = if settings.dns.enabled {
-        let dns_addr: SocketAddr = format!("{}:{}", settings.dns.bind_address, settings.dns.port).parse()?;
-        Some(tokio::spawn(dns::run_server(dns_addr)))
+        // DÜZELTME: `run_server`'a tüm settings objesini klonlayıp veriyoruz.
+        let dns_settings = settings.clone();
+        Some(tokio::spawn(async move {
+            if let Err(e) = dns::run_server(&dns_settings).await {
+                error!("DNS server failed: {}", e);
+            }
+        }))
     } else {
         info!("DNS server is disabled in config.");
         None
