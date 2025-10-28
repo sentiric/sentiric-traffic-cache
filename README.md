@@ -1,19 +1,30 @@
 # 🚀 sentiric-traffic-cache
 
-**The Invisible Network Assistant.** An intelligent, universal caching layer designed to accelerate development workflows and simplify network management for everyone, from individual developers to entire offices.
+**The Invisible Network Assistant.** An intelligent, universal caching layer designed to accelerate development workflows and simplify network management.
 
-> This project is currently in the initial construction phase. For the complete vision and roadmap, please see [docs/PROJECT_GENESIS.md](docs/PROJECT_GENESIS.md).
+> This project is being built based on the vision defined in [docs/PROJECT_GENESIS.md](docs/PROJECT_GENESIS.md).
 
-## ✨ Core Philosophy
+## 🏃‍♂️ Quick Start (Development Environment)
 
-`sentiric-traffic-cache` is built to eliminate the "inefficiency tax" of modern software development—specifically, the time and bandwidth wasted on re-downloading dependencies (`docker pull`, `apt-get`, etc.) for the sake of creating clean, reproducible environments.
+This project is designed to be built and run inside Docker to ensure a consistent and reproducible environment.
 
-This power is then extended to the entire network, providing a seamless, zero-configuration speed boost for any connected device.
+### Prerequisites
 
-## 🏛️ Architecture
+-   [Docker](https://www.docker.com/products/docker-desktop/)
+-   Docker Compose
 
-The project is built on a modular, testable, and maintainable architecture using a Cargo Workspace. For a detailed overview, please refer to the [Project Genesis document](docs/PROJECT_GENESIS.md).
+### Running the Application
 
-## 🏃‍♂️ Getting Started
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/sentiric/sentiric-traffic-cache.git
+    cd sentiric-traffic-cache
+    ```
 
-> Instructions for building and running the project will be available here soon.
+2.  Start the application using Docker Compose:
+    ```bash
+    docker compose up --build
+    ```
+The first build may take some time. Subsequent builds will be much faster thanks to Docker's layer caching.
+
+The proxy will be running and available at `http://127.0.0.1:3128`. You can now configure your browser or system to use this address.
