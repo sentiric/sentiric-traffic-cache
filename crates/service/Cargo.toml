@@ -1,0 +1,9 @@
+    [package]
+    name = "sentiric-service"
+    version = "0.1.0"
+    edition = "2021"
+
+    [dependencies]
+    sentiric-core = { path = "../core" }
+
+    # We will add dependencies like hyper, warp, etc., here in the next steps

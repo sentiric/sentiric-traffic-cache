@@ -1,0 +1,9 @@
+    [package]
+    name = "sentiric-cli"
+    version = "0.1.0"
+    edition = "2021"
+
+    [dependencies]
+    sentiric-service = { path = "../service" }
+    anyhow = { workspace = true }
+    tokio = { workspace = true }
