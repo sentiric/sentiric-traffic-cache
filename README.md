@@ -2,42 +2,41 @@
 
 [![Continuous Integration](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml)
 
-**The Invisible Network Assistant.** An intelligent, universal caching layer designed to accelerate development workflows and simplify network management.
+**Görünmez Ağ Asistanı.** Geliştirme iş akışlarını hızlandırmak ve ağ yönetimini basitleştirmek için tasarlanmış akıllı, evrensel bir önbellekleme katmanı.
 
-> This project is being built based on the vision defined in [docs/PROJECT_GENESIS.md](docs/PROJECT_GENESIS.md).
+## 🏃‍♂️ Hızlı Başlangıç
 
-## 🏃‍♂️ Quick Start
-
-### Docker (Recommended)
-The latest Docker image is always available from the GitHub Container Registry:
+### Docker (Tavsiye Edilen)
+En güncel Docker imajı her zaman GitHub Container Registry'de mevcuttur:
 ```bash
 docker pull ghcr.io/sentiric/sentiric-traffic-cache:latest
 ```
 
-### Binaries
-Pre-compiled binaries for Linux and Windows are available on the [**Releases Page**](https://github.com/sentiric/sentiric-traffic-cache/releases).
+### Çalıştırılabilir Dosyalar
+Linux ve Windows için önceden derlenmiş çalıştırılabilir dosyalara [**Sürümler (Releases) Sayfasından**](https://github.com/sentiric/sentiric-traffic-cache/releases) ulaşabilirsiniz.
 
-## 💻 Development
+## 💻 Geliştirme Ortamı
 
-This project is designed to be built and run inside Docker to ensure a consistent and reproducible environment.
+Bu proje, tutarlı ve tekrarlanabilir bir ortam sağlamak amacıyla Docker içinde derlenip çalıştırılacak şekilde tasarlanmıştır.
 
-### Prerequisites
+### Ön Gereksinimler
 
 -   [Docker](https://www.docker.com/products/docker-desktop/)
 -   Docker Compose
 
-### Running the Application
+### Uygulamayı Çalıştırma
 
-1.  Clone the repository:
+1.  Repo'yu klonlayın:
     ```bash
     git clone https://github.com/sentiric/sentiric-traffic-cache.git
     cd sentiric-traffic-cache
     ```
 
-2.  Start the application using Docker Compose:
+2.  Uygulamayı Docker Compose ile başlatın:
     ```bash
     docker compose up --build
     ```
 
+> **Önemli:** Projeye katkıda bulunmadan önce, lütfen geliştirme felsefemizi ve standartlarımızı özetleyen [**Geliştirme Kılavuzu'nu**](docs/DEVELOPMENT_GUIDE.md) okuyun.
 
 ---
