@@ -1,17 +1,25 @@
 # --- Adım 1: Builder ---
 # Kodumuzu derlemek için Rust'ın resmi imajını kullanıyoruz.
-FROM rust:1.78 as builder
+# Dockerfile yazım kurallarına uygun olarak büyük harf kullanıyoruz.
+FROM rust:1.78 AS builder
 
 WORKDIR /app
 
-# Sadece bağımlılık tanımlarını kopyala. Bu, Docker'ın katman önbelleğini
-# en verimli şekilde kullanmasını sağlar. Sadece bağımlılıklar değiştiğinde
-# bu adımlar yeniden çalışır.
+# Sadece bağımlılık tanımlarını kopyala.
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates
 
-# Bağımlılıkları önceden derle.
+# Bağımlılıkları önceden derle. Bu, Docker katman önbelleğini en verimli
+# şekilde kullanır. Sadece bağımlılıklar değiştiğinde bu adım yeniden çalışır.
+# Önce boş bir src oluşturarak sadece bağımlılıkların derlenmesini sağlıyoruz.
+RUN mkdir -p crates/cli/src && echo "fn main() {}" > crates/cli/src/main.rs
 RUN cargo build --workspace --release
+
+# Şimdi asıl kodumuzu kopyala. Sadece kod değiştiğinde bu adım çalışır.
+COPY crates crates
+# Önbelleği temizle ve sadece cli paketini yeniden derle. Bu, en güncel kodun
+# kullanılmasını garanti eder ve daha hızlıdır.
+RUN cargo clean -p sentiric-cli && cargo build -p sentiric-cli --release
 
 # --- Adım 2: Runner ---
 # Sonuç imajımız, çok daha küçük olan Debian "slim" tabanlı olacak.
@@ -23,6 +31,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 WORKDIR /app
 
 # Builder aşamasında derlediğimiz tek çalıştırılabilir dosyayı kopyala.
+# Derlenen dosyanın tam yolunu belirtiyoruz.
 COPY --from=builder /app/target/release/sentiric-cli /usr/local/bin/sentiric-cli
 
 # Uygulamanın çalışması için gerekli olan config dosyasını kopyala.
