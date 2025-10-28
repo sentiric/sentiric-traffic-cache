@@ -2,7 +2,8 @@ use rust_embed::RustEmbed;
 use std::borrow::Cow;
 use warp::http::header::HeaderValue;
 use warp::Filter;
-use hyper::Body; // <--- EKLENDİ
+use hyper::Body;
+use rust_embed::Embed; // <--- EKLENDİ
 
 #[derive(RustEmbed)]
 #[folder = "web/dist/"]
@@ -22,10 +23,10 @@ async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, 
         path.as_str()
     };
     
+    // WebAssets::get() artık çalışacak çünkü 'Embed' trait'i scope'da.
     match WebAssets::get(path) {
         Some(content) => {
             let mime = mime_guess::from_path(path).first_or_octet_stream();
-            // DÜZELTME: `.into()` yerine doğrudan Body::from kullanıyoruz.
             let body = Body::from(content.data);
             let mut res = warp::reply::Response::new(body);
             res.headers_mut().insert("content-type", HeaderValue::from_str(mime.as_ref()).unwrap());
@@ -34,7 +35,6 @@ async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, 
         None => match WebAssets::get("index.html") {
             Some(content) => {
                 let mime = mime_guess::from_path("index.html").first_or_octet_stream();
-                // DÜZELTME: `.into()` yerine doğrudan Body::from kullanıyoruz.
                 let body = Body::from(content.data);
                 let mut res = warp::reply::Response::new(body);
                 res.headers_mut().insert("content-type", HeaderValue::from_str(mime.as_ref()).unwrap());
