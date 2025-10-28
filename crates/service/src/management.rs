@@ -2,7 +2,7 @@ use crate::cache::CacheManager;
 use anyhow::Result;
 use futures_util::{StreamExt, SinkExt};
 use sentiric_core::Stats;
-use std::net::SocketAddr;
+// use std::net::SocketAddr; // <--- KALDIRILDI
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use warp::ws::{Message, WebSocket};
@@ -21,7 +21,6 @@ lazy_static::lazy_static! {
     pub static ref EVENT_BROADCASTER: Sender<WsEvent> = broadcast::channel(128).0;
 }
 
-// DÜZELTME: Bu fonksiyonun 'pub' olması gerekiyor ki 'lib.rs' onu görebilsin.
 pub fn api_routes(cache: Arc<CacheManager>) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     let cache_filter = warp::any().map(move || cache.clone());
 
