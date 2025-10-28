@@ -31,12 +31,10 @@ function connect(callbacks: EventStreamCallbacks) {
   const wsUrl = `${wsProtocol}//${window.location.host}${API_BASE}/events`;
   socket = new WebSocket(wsUrl);
 
-  socket.onopen = callbacks.onOpen;
-  socket.onclose = () => {
-    callbacks.onClose?.();
-    socket = null;
-    setTimeout(() => connect(callbacks), 3000);
-  };
+  socket.onopen = callbacks.onOpen ?? null;
+  // DÜZELTME: Eğer callbacks.onClose tanımsız ise, null ata.
+  socket.onclose = callbacks.onClose ?? null;
+  
   socket.onmessage = (event) => {
     try {
       const parsedEvent = JSON.parse(event.data) as WsEvent;
@@ -45,6 +43,7 @@ function connect(callbacks: EventStreamCallbacks) {
       }
     } catch (e) { console.error("Failed to parse event:", e); }
   };
+
   socket.onerror = (error) => {
     console.error("WebSocket error:", error);
     socket?.close();
@@ -52,7 +51,17 @@ function connect(callbacks: EventStreamCallbacks) {
 }
 
 export function subscribeToEvents(callbacks: EventStreamCallbacks) {
+  // Yeniden bağlanma mantığını basitleştiriyoruz.
+  const reconnectingCallbacks = {
+    ...callbacks,
+    onClose: () => {
+      callbacks.onClose?.();
+      socket = null; // Soketi temizle
+      setTimeout(() => connect(reconnectingCallbacks), 3000); // 3 saniye sonra aynı callback'lerle tekrar bağlan
+    }
+  };
+
   if (!socket) {
-    connect(callbacks);
+    connect(reconnectingCallbacks);
   }
 }

@@ -5,12 +5,14 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "**" ]
-  
   workflow_call:
 
 jobs:
-  test_and_lint:
-    name: Test and Lint
+  #########################################
+  # 1. Backend Lint ve Unit Testleri      #
+  #########################################
+  backend_tests:
+    name: Backend Lint & Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,19 +22,41 @@ jobs:
         with:
           components: clippy
       - name: Run linter (clippy)
-        # DÜZELTME: Clippy'nin de 'test' konfigürasyonunu kullanmasını sağlıyoruz.
-        run: cargo clippy --workspace --all-targets -- -D warnings --cfg test
-
+        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Run unit tests
         run: cargo test --workspace
 
-  integration_test:
-    name: Integration Test
+  #########################################
+  # 2. Frontend Lint ve Build Testi       #
+  #########################################
+  frontend_build:
+    name: Frontend Build & Lint
     runs-on: ubuntu-latest
-    needs: test_and_lint
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Run integration tests with Docker Compose
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies and build
+        working-directory: ./web
+        run: |
+          npm ci
+          npm run build
+
+  #########################################
+  # 3. Tam Entegrasyon Testi              #
+  #########################################
+  integration_test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    # Önceki iki adım başarılı olursa çalış
+    needs: [backend_tests, frontend_build]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Run End-to-End tests
         working-directory: ./tests
         run: docker compose -f docker-compose.integration.yml up --build --exit-code-from tester
