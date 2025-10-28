@@ -1,9 +1,12 @@
-    [package]
-    name = "sentiric-cli"
-    version = "0.1.0"
-    edition = "2021"
+[package]
+name = "sentiric-cli"
+version = "0.1.0"
+edition = "2021"
 
-    [dependencies]
-    sentiric-service = { path = "../service" }
-    anyhow = { workspace = true }
-    tokio = { workspace = true }
+[dependencies]
+sentiric-service = { path = "../service" }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+
+# Workspace'de olmadığı için burada ekliyoruz
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
