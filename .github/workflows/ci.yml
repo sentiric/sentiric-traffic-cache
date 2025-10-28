@@ -1,14 +1,11 @@
 name: Continuous Integration
 
-# Bu workflow'un ne zaman çalışacağını tanımlayan trigger'lar
 on:
-  # Normal push ve pull request'lerde çalış
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "**" ]
   
-  # DÜZELTME: Başka bir workflow tarafından çağrılmasına izin ver
   workflow_call:
 
 jobs:
@@ -23,7 +20,9 @@ jobs:
         with:
           components: clippy
       - name: Run linter (clippy)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        # DÜZELTME: Clippy'nin de 'test' konfigürasyonunu kullanmasını sağlıyoruz.
+        run: cargo clippy --workspace --all-targets -- -D warnings --cfg test
+
       - name: Run unit tests
         run: cargo test --workspace
 
