@@ -4,7 +4,7 @@ members = [
     "crates/core",
     "crates/service",
     "crates/cli",
-    # "crates/companion", # Will be added later
+    "crates/companion",
 ]
 
 # Shared dependencies can be defined here to ensure version consistency

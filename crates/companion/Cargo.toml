@@ -1,0 +1,31 @@
+[package]
+name = "sentiric-companion"
+version = "0.1.0"
+description = "Desktop companion for Sentiric Traffic Cache"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.76"
+
+build = "src-tauri/build.rs"
+
+# DÜZELTME: Cargo'ya ana binary'nin nerede olduğunu açıkça belirtiyoruz.
+[[bin]]
+name = "sentiric-companion"
+path = "src-tauri/src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "1.5" }
+
+[dependencies]
+sentiric-service = { path = "../service" } 
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.6", features = ["shell-open", "system-tray"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
