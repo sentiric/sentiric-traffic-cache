@@ -1,10 +1,15 @@
 name: Continuous Integration
 
+# Bu workflow'un ne zaman çalışacağını tanımlayan trigger'lar
 on:
+  # Normal push ve pull request'lerde çalış
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "**" ] # Artık tüm branch'lerde çalışacak
+    branches: [ "**" ]
+  
+  # DÜZELTME: Başka bir workflow tarafından çağrılmasına izin ver
+  workflow_call:
 
 jobs:
   test_and_lint:
