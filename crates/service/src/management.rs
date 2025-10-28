@@ -9,6 +9,15 @@ use warp::ws::{Message, WebSocket};
 use warp::Filter;
 use serde::Serialize;
 use tracing::info;
+use rust_embed::RustEmbed; // <--- EKLENDİ
+use std::borrow::Cow; // <--- EKLENDİ
+use warp::http::header::HeaderValue; // <--- EKLENDİ
+
+// Bu macro, derleme sırasında `web/dist` klasöründeki tüm dosyaları
+// binary'nin içine gömer.
+#[derive(RustEmbed)]
+#[folder = "web/dist/"]
+struct WebAssets;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +26,6 @@ pub enum WsEvent {
     StatsUpdated(Stats),
 }
 
-// Tüm sisteme yayın yapacak olan global kanal
 lazy_static::lazy_static! {
     pub static ref EVENT_BROADCASTER: Sender<WsEvent> = broadcast::channel(128).0;
 }
@@ -26,49 +34,74 @@ lazy_static::lazy_static! {
 pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()> {
     info!("🚀 Management server listening on http://{}", addr);
 
-    // Warp filter'larında kullanılmak üzere klonla
     let cache_filter = warp::any().map(move || cache.clone());
 
-    // GET /api/stats endpoint'i
     let stats_route = warp::path!("api" / "stats")
         .and(cache_filter.clone())
         .and_then(handle_stats);
 
-    // WS /api/events endpoint'i
     let events_route = warp::path!("api" / "events")
         .and(warp::ws())
         .map(|ws: warp::ws::Ws| {
             ws.on_upgrade(handle_websocket_connection)
         });
+    
+    // API rotalarını birleştir
+    let api_routes = stats_route.or(events_route);
 
-    let routes = stats_route.or(events_route);
+    // Statik dosya sunucusu rotası
+    let static_files = warp::get().and(warp::path::tail()).and_then(serve_static_files);
+    
+    // Tüm rotaları birleştir. Önce API, sonra statik dosyalar.
+    let routes = api_routes.or(static_files);
 
     warp::serve(routes).run(addr).await;
 
     Ok(())
 }
 
-// /api/stats isteğini işler
+// Statik dosyaları sunan fonksiyon
+async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, warp::Rejection> {
+    let path = if path.as_str().is_empty() {
+        "index.html"
+    } else {
+        path.as_str()
+    };
+    
+    match WebAssets::get(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            let mut res = warp::reply::Response::new(Cow::from(content.data).into());
+            res.headers_mut().insert("content-type", HeaderValue::from_str(mime.as_ref()).unwrap());
+            Ok(res)
+        }
+        // Eğer dosya bulunamazsa, SPA (Single Page Application) yönlendirmesi için
+        // her zaman index.html'i döndür.
+        None => match WebAssets::get("index.html") {
+            Some(content) => {
+                let mime = mime_guess::from_path("index.html").first_or_octet_stream();
+                let mut res = warp::reply::Response::new(Cow::from(content.data).into());
+                res.headers_mut().insert("content-type", HeaderValue::from_str(mime.as_ref()).unwrap());
+                Ok(res)
+            }
+            None => Err(warp::reject::not_found()),
+        },
+    }
+}
+
+// ... (handle_stats ve handle_websocket_connection fonksiyonları aynı kalacak)
 async fn handle_stats(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
     let stats = cache.get_stats().await;
     Ok(warp::reply::json(&stats))
 }
-
-// Yeni bir WebSocket bağlantısını işler
 async fn handle_websocket_connection(websocket: WebSocket) {
     info!("New WebSocket client connected");
     let (mut client_tx, _) = websocket.split();
     let mut rx = EVENT_BROADCASTER.subscribe();
-
-    // Bu bağlantı için ayrı bir görev (task) başlat
     tokio::spawn(async move {
-        // Kanalda yeni bir event olduğunda...
         while let Ok(event) = rx.recv().await {
-            // Event'i JSON string'ine çevir
             if let Ok(json) = serde_json::to_string(&event) {
-                // Ve WebSocket üzerinden istemciye gönder
                 if client_tx.send(Message::text(json)).await.is_err() {
-                    // Hata olursa (istemci bağlantıyı kapatmışsa), döngüyü kır
                     break;
                 }
             }
