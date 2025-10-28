@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-use tracing::{error, info, instrument, warn};
+use tracing::{error, info, instrument, warn, Instrument}; // <--- Instrument EKLENDİ
 
 /// Ana proxy sunucusunu çalıştırır.
 pub async fn run_server(

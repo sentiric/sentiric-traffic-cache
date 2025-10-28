@@ -14,6 +14,9 @@ tracing = { workspace = true }
 # Yapılandırma
 config = "0.13.3"
 
+# Loglama
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] } # <--- EKLENDİ
+
 # Proxy Motoru
 http = "0.2.9"
 hyper = { version = "0.14.27", features = ["full"] }
@@ -21,9 +24,8 @@ tokio-rustls = "0.24.1"
 rustls = "0.21.11"
 rustls-pemfile = "1.0.4"
 rcgen = { version = "0.11.3", features = ["x509-parser"] }
-lazy_static = "1.4.0" # Downloader için
-hyper-rustls = "0.24.1" # Downloader için
-
+lazy_static = "1.4.0"
+hyper-rustls = "0.24.1"
 
 # Önbellek
 md5 = "0.7.0"

@@ -41,7 +41,8 @@ impl CacheManager {
     /// Caches a response body to disk while streaming it to the client.
     #[instrument(skip(self, body_stream))]
     pub async fn put_stream(&self, key: String, body_stream: Body) -> Result<Body> {
-        let (mut tx, body_for_client) = Body::channel();
+        // 'mut tx' idi, 'tx' olarak değiştirildi.
+        let (tx, body_for_client) = Body::channel(); // <--- DÜZELTME BURADA
         let path = self.key_to_path(&key);
 
         tokio::spawn(async move {
