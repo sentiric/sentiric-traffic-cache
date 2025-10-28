@@ -10,13 +10,13 @@ RUN cd web && npm install && npm run build
 
 # Backend Derleme
 COPY Cargo.toml ./ 
-# Not: Cargo.lock* hem Cargo.lock dosyasını hem de hiç olmamasını kabul eder.
 COPY crates crates
 RUN cargo build -p sentiric-cli --release
 
 # --- Adım 2: Runner ---
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# DÜZELTME: Healthcheck için 'curl' paketini ekliyoruz.
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Gerekli dosyaları kopyala
