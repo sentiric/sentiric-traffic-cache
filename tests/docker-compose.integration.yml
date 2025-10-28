@@ -1,17 +1,14 @@
-# 'version' anahtarı artık modern Docker Compose'da gerekli değil.
 services:
-  # 'app' servisi, bizim ana uygulamamızdır.
   app:
     build:
       # Build context'i, bu dosyanın bir üst dizinidir (proje kökü).
       context: ..
-      # Proje kökündeki ana Dockerfile'ı kullan.
-      dockerfile: ../Dockerfile
+      # Proje kökündeki ana Dockerfile'ı kullan. 'dockerfile' yolu, 'context'e görecelidir.
+      dockerfile: Dockerfile # <--- DÜZELTME BURADA
     container_name: sentiric-app-test
     volumes:
       - ../config.toml:/app/config.toml
 
-  # 'tester' servisi, 'app' servisini test etmek için kullanılır.
   tester:
     build:
       # Build context'i, bu dosyanın bulunduğu dizindir (tests/).
@@ -22,8 +19,6 @@ services:
     environment:
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
-    # Test script'ini çalıştır.
     command: /test-runner.sh
-    # 'tester' servisi, 'app' servisi başladıktan sonra başlasın.
     depends_on:
       - app
