@@ -40,4 +40,5 @@ futures-util = { version = "0.3.28" }
 tokio-util = { version = "0.7.8", features = ["codec", "io"] }
 bytes = "1.5.0"
 
-# [features] bölümü TAMAMEN KALDIRILDI
+# DNS Sunucusu
+trust-dns-server = "0.23.1" # <--- EKLENDİ

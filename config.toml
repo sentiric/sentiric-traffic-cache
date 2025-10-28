@@ -6,6 +6,11 @@ bind_address = "0.0.0.0"
 port = 8080
 bind_address = "0.0.0.0"
 
+[dns] # <-- EKLENDİ
+enabled = true
+port = 53
+bind_address = "0.0.0.0"
+
 [certs]
 path = "./.certs"
 

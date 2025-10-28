@@ -23,7 +23,15 @@ pub struct Settings {
     pub proxy: Proxy,
     pub certs: Certs,
     pub cache: Cache,
-    pub management: Management, // <-- EKLENDİ
+    pub management: Management,
+    pub dns: Dns, // <-- EKLENDİ
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Dns { // <-- EKLENDİ
+    pub enabled: bool,
+    pub port: u16,
+    pub bind_address: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
