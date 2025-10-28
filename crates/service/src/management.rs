@@ -21,10 +21,8 @@ lazy_static::lazy_static! {
     pub static ref EVENT_BROADCASTER: Sender<WsEvent> = broadcast::channel(128).0;
 }
 
-/// Starts the management web server.
-pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()> {
-    info!("🚀 Management server listening on http://{}", addr);
-
+// DÜZELTME: Bu fonksiyonun 'pub' olması gerekiyor ki 'lib.rs' onu görebilsin.
+pub fn api_routes(cache: Arc<CacheManager>) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     let cache_filter = warp::any().map(move || cache.clone());
 
     let stats_route = warp::path!("api" / "stats")
@@ -35,16 +33,7 @@ pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()
         .and(warp::ws())
         .map(|ws: warp::ws::Ws| ws.on_upgrade(handle_websocket_connection));
     
-    let api_routes = stats_route.or(events_route);
-
-    // DÜZELTME: Statik dosyaları 'web/dist' klasöründen sun.
-    let static_files = warp::fs::dir("web/dist");
-
-    let routes = api_routes.or(static_files);
-
-    warp::serve(routes).run(addr).await;
-
-    Ok(())
+    stats_route.or(events_route)
 }
 
 async fn handle_stats(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
