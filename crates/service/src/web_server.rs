@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use warp::http::header::HeaderValue;
 use warp::Filter;
 use hyper::Body;
+use rust_embed::Embed; // <--- BU SATIR KRİTİK
 
 #[derive(RustEmbed)]
 #[folder = "web/dist/"]
@@ -22,7 +23,8 @@ async fn serve_static_files(path: warp::path::Tail) -> Result<impl warp::Reply, 
         path.as_str()
     };
     
-    // Artık 'derive' özelliği sayesinde bu basit kullanımın çalışması gerekiyor.
+    // 'Embed' trait'ini 'use' ile eklediğimiz için, bu basit kullanımın
+    // artık çalışması gerekiyor.
     match WebAssets::get(path) {
         Some(content) => {
             let mime = mime_guess::from_path(path).first_or_octet_stream();
