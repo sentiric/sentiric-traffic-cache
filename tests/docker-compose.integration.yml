@@ -1,20 +1,17 @@
-# Docker Compose dosya formatının sürümünü belirtir.
-version: '3.8'
-
-# Tüm servisler bu anahtar kelimenin altında ve girintili olarak tanımlanmalıdır.
+# 'version' anahtarı artık modern Docker Compose'da gerekli değil.
 services:
-  # 'app' adında ilk servisimiz. 'app' kelimesi 'services'e göre 2 boşluk içeride olmalı.
+  # 'app' servisi, bizim ana uygulamamızdır.
   app:
     build:
       # Build context'i, bu dosyanın bir üst dizinidir (proje kökü).
       context: ..
-      # Proje kökündeki Dockerfile'ı kullan.
+      # Proje kökündeki ana Dockerfile'ı kullan.
       dockerfile: ../Dockerfile
     container_name: sentiric-app-test
     volumes:
       - ../config.toml:/app/config.toml
 
-  # 'tester' adında ikinci servisimiz. 'app' ile aynı girinti seviyesinde olmalı.
+  # 'tester' servisi, 'app' servisini test etmek için kullanılır.
   tester:
     build:
       # Build context'i, bu dosyanın bulunduğu dizindir (tests/).
