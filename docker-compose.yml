@@ -1,27 +1,16 @@
-version: '3.8'
-
 services:
   app:
-    # Dockerfile'ı kullanarak imajı oluştur.
     build: .
     container_name: sentiric-traffic-cache
-    
-    # Portları makinemize yönlendir.
-    # 3128: Proxy portu
     ports:
       - "3128:3128"
-      # - "8080:8080" # Yönetim arayüzü eklendiğinde bu satırı açacağız.
-      # - "53:53/udp" # DNS eklendiğinde bu satırı açacağız.
-
-    # Kodda değişiklik yaptığımızda konteynerin yeniden başlamasını sağlar.
-    # Bu, geliştirme sırasında harika bir kolaylıktır.
+      - "8080:8080" # Yönetim arayüzü
+      # - "53:53/udp" # DNS eklendiğinde bu satırı açacağız.      
     volumes:
       - ./crates:/app/crates
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
       - ./config.toml:/app/config.toml
-      # .certs dizinini bağlayarak sertifikaların kalıcı olmasını sağlıyoruz.
       - ./.certs:/app/.certs
-
-    # Konteynerin her zaman çalışır durumda kalmasını sağlar.
+      - ./.cache:/app/.cache # <--- Cache'i de kalıcı hale getirelim
     restart: unless-stopped
