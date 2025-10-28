@@ -23,11 +23,9 @@ jobs:
           components: clippy
 
       - name: Run linter (clippy)
-        # --workspace flag'i, cargo'ya tüm workspace üyelerini kontrol etmesini söyler.
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run unit tests
-        # --workspace flag'i, cargo'ya tüm workspace üyelerinin testlerini çalıştırmasını söyler.
         run: cargo test --workspace
 
   integration_test:
@@ -40,7 +38,8 @@ jobs:
         
       - name: Run integration tests with Docker Compose
         working-directory: ./tests
-        run: docker-compose -f docker-compose.integration.yml up --build --exit-code-from tester
+        # DÜZELTME BURADA: docker-compose -> docker compose
+        run: docker compose -f docker-compose.integration.yml up --build --exit-code-from tester
         
   build_and_push_image:
     name: Build and Push Docker Image
