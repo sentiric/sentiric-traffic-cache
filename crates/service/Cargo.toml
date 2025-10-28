@@ -1,9 +1,32 @@
-    [package]
-    name = "sentiric-service"
-    version = "0.1.0"
-    edition = "2021"
+[package]
+name = "sentiric-service"
+version = "0.1.0"
+edition = "2021"
 
-    [dependencies]
-    sentiric-core = { path = "../core" }
+[dependencies]
+sentiric-core = { path = "../core" }
 
-    # We will add dependencies like hyper, warp, etc., here in the next steps
+# Workspace'den gelenler
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+# Yapılandırma
+config = "0.13.3"
+lazy_static = "1.4.0"
+
+# Proxy Motoru
+http = "0.2.9"
+hyper = { version = "0.14.27", features = ["full"] }
+tokio-rustls = "0.24.1"
+rustls = "0.21.11"
+rustls-pemfile = "1.0.4"
+rcgen = { version = "0.11.3", features = ["x509-parser"] }
+
+# Önbellek
+lru = "0.12.0"
+md5 = "0.7.0"
+bincode = "1.3.3"
+futures-util = { version = "0.3.28" }
+tokio-util = { version = "0.7.8", features = ["codec", "io"] }
+bytes = "1.5.0"

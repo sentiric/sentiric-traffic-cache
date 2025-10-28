@@ -1,21 +1,23 @@
 //! The Core Crate
-    //!
-    //! This crate contains the shared business logic, data structures, and traits
-    //! for the `sentiric-traffic-cache`. It is designed to be completely free of
-    //! I/O operations and framework-specific details, making it highly testable
-    //! and portable.
+//!
+//! This crate contains the shared business logic, data structures, and traits
+//! for the `sentiric-traffic-cache`.
 
-    pub fn add(left: usize, right: usize) -> usize {
-        left + right
-    }
+use serde::Deserialize;
 
-    #[cfg(test)]
-    mod tests {
-        use super::*;
+#[derive(Debug, Deserialize, Clone)]
+pub struct Settings {
+    pub proxy: Proxy,
+    pub certs: Certs,
+}
 
-        #[test]
-        fn it_works() {
-            let result = add(2, 2);
-            assert_eq!(result, 4);
-        }
-    }
+#[derive(Debug, Deserialize, Clone)]
+pub struct Proxy {
+    pub port: u16,
+    pub bind_address: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Certs {
+    pub path: String,
+}

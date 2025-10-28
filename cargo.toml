@@ -1,14 +1,7 @@
-    [workspace]
-    resolver = "2"
-    members = [
-        "crates/core",
-        "crates/service",
-        "crates/cli",
-        # "crates/companion", # Will be added later
-    ]
+[proxy]
+port = 3128
+bind_address = "127.0.0.1"
 
-    # Shared dependencies can be defined here to ensure version consistency
-    [workspace.dependencies]
-    anyhow = "1.0.71"
-    tokio = { version = "1.28.2", features = ["full"] }
-    tracing = "0.1.37"
+[certs]
+# Sertifikaların nereye oluşturulacağı/okunacağı
+path = "./.certs"
