@@ -22,6 +22,9 @@ services:
       - testnet
     depends_on:
       - app
-    # DÜZELTME: Docker soketini bağlıyoruz.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+# DÜZELTME: Eksik olan networks tanımını geri ekliyoruz.
+networks:
+  testnet:
