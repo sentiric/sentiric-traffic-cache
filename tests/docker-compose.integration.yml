@@ -8,6 +8,11 @@ services:
       - ../config.toml:/app/config.toml
     networks:
       - testnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/stats"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
   tester:
     build:
@@ -17,14 +22,13 @@ services:
     environment:
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
+      - no_proxy=app,localhost # 'app' hostuna yapılan istekler proxy'den geçmesin.
     command: /test-runner.sh
     networks:
       - testnet
     depends_on:
-      - app
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      app:
+        condition: service_healthy
 
-# DÜZELTME: Eksik olan networks tanımını geri ekliyoruz.
 networks:
   testnet:

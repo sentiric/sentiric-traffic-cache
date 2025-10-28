@@ -8,8 +8,6 @@ use tracing::{debug, info, instrument, warn};
 use hyper::body::{Body, Sender};
 use futures_util::StreamExt;
 
-
-/// Manages disk-based caching and statistics.
 pub struct CacheManager {
     disk_path: PathBuf,
     pub stats: Arc<CacheStatsInternal>,
@@ -28,7 +26,6 @@ impl CacheManager {
         let disk_path = Path::new(path).to_path_buf();
         std::fs::create_dir_all(&disk_path).context("Failed to create cache directory")?;
         info!("Disk cache enabled at: {:?}", disk_path);
-        // TODO: Başlangıçta diskteki dosyaları sayarak istatistikleri doldur
         Ok(Self {
             disk_path,
             stats: Arc::new(CacheStatsInternal::default()),
@@ -57,13 +54,12 @@ impl CacheManager {
         let path = self.key_to_path(key);
         if path.exists() {
             debug!("CACHE HIT (disk): {}", key);
-            self.stats.hits.fetch_add(1, Ordering::Relaxed); // Sayaç
+            self.stats.hits.fetch_add(1, Ordering::Relaxed);
             let file = fs::File::open(path).await.ok()?;
             let stream = tokio_util::io::ReaderStream::new(file);
             return Some(Body::wrap_stream(stream));
         }
         debug!("CACHE MISS: {}", key);
-        self.stats.misses.fetch_add(1, Ordering::Relaxed); // Sayaç
         None
     }
 
@@ -71,8 +67,7 @@ impl CacheManager {
     pub async fn put_stream(&self, key: String, body_stream: Body) -> Result<Body> {
         let (tx, body_for_client) = Body::channel();
         let path = self.key_to_path(&key);
-        let stats_clone = self.stats.clone(); // Sayaçlar için
-
+        let stats_clone = self.stats.clone();
         tokio::spawn(async move {
             if let Err(e) =
                 Self::stream_to_disk_and_client(body_stream, tx, path, key, stats_clone).await
@@ -80,27 +75,24 @@ impl CacheManager {
                 warn!("Failed to cache response: {}", e);
             }
         });
-
         Ok(body_for_client)
     }
-
+    
     async fn stream_to_disk_and_client(
         mut body_stream: Body,
         mut tx: Sender,
         path: PathBuf,
         key: String,
-        stats: Arc<CacheStatsInternal>, // Sayaçlar için
+        stats: Arc<CacheStatsInternal>,
     ) -> Result<()> {
         let mut file = fs::File::create(&path).await.context("Failed to create cache file")?;
         let mut total_bytes = 0;
-
         while let Some(chunk_result) = body_stream.next().await {
             let chunk = chunk_result.context("Error reading response stream")?;
             file.write_all(&chunk).await.context("Failed to write to cache file")?;
             total_bytes += chunk.len() as u64;
             let _ = tx.send_data(chunk).await;
         }
-
         stats.disk_items.fetch_add(1, Ordering::Relaxed);
         stats.total_disk_size_bytes.fetch_add(total_bytes, Ordering::Relaxed);
         info!("CACHE PUT: {} ({} bytes)", key, total_bytes);

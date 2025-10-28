@@ -8,49 +8,56 @@ MGMT_URL="http://${APP_HOST}:8080"
 TEST_URL="http://cachefly.cachefly.net/10mb.test"
 OUTPUT_FILE="/dev/null"
 
-echo "--- Waiting for management API to be ready ---"
+# API'nin hazır olmasını bekleme fonksiyonu (artık depends_on:service_healthy ile gerek yok ama
+# yine de bir güvenlik önlemi olarak kalabilir)
+echo "--- Waiting for services to be healthy ---"
+# docker-compose.yml'deki healthcheck bu bekleme işini zaten yapıyor.
+# Buraya sadece bir log mesajı koyuyoruz.
 
-# Daha sağlam bir bekleme döngüsü
-wait_for_api() {
-    for i in {1..30}; do
-        # -v ile detaylı çıktı al, -f ile hata kodu bekle, -s ile ilerleme çubuğunu gizle
-        # 2>&1 ile hem stdout hem stderr'i birleştirip grep'e gönder
-        if curl -v -s -f "${MGMT_URL}/api/stats" >/dev/null 2>&1; then
-            echo "--- API is ready! ---"
-            return 0
-        fi
-        echo "Attempt $i: Waiting for API..."
-        # Hata ayıklama için app konteynerinin loglarını gösterelim
-        echo "--- APP CONTAINER LOGS ---"
-        docker logs sentiric-app-test || echo "Could not get app logs."
-        echo "--------------------------"
-        sleep 1
-    done
-    echo "--- FAILURE: API did not become ready in 30 seconds. ---"
-    return 1
-}
+echo "--- Services are healthy. Starting E2E tests. ---"
 
-# Bekleme fonksiyonunu çağır
-wait_for_api
+# Testten önce istatistiklerin sıfır olduğundan emin olalım.
+# Başlangıçtaki API kontrolü bile sayaçları etkileyebilir.
+initial_stats=$(curl -s ${MGMT_URL}/api/stats)
+initial_hits=$(echo ${initial_stats} | jq '.hits')
+initial_misses=$(echo ${initial_stats} | jq '.misses')
 
-echo "--- API is ready. Starting E2E tests. ---"
+if [ "${initial_hits}" -ne 0 ] || [ "${initial_misses}" -ne 0 ]; then
+    echo "--- FAILURE: Initial stats are not zero! Hits: ${initial_hits}, Misses: ${initial_misses} ---"
+    exit 1
+fi
 
 # --- Test 1: Cache Miss Senaryosu ---
 echo "--- Running Cache MISS test ---"
 curl -s -L --proxy ${PROXY_URL} ${TEST_URL} -o ${OUTPUT_FILE}
 
-misses=$(curl -s ${MGMT_URL}/api/stats | jq '.misses')
+stats_after_miss=$(curl -s ${MGMT_URL}/api/stats)
+misses=$(echo ${stats_after_miss} | jq '.misses')
+hits=$(echo ${stats_after_miss} | jq '.hits')
+
 if [ "${misses}" -ne 1 ]; then
     echo "--- FAILURE: Expected 1 miss, but got ${misses} ---"
     exit 1
 fi
+if [ "${hits}" -ne 0 ]; then
+    echo "--- FAILURE: Expected 0 hits after miss, but got ${hits} ---"
+    exit 1
+fi
 echo "--- SUCCESS: Cache MISS validated. ---"
+
 
 # --- Test 2: Cache Hit Senaryosu ---
 echo "--- Running Cache HIT test ---"
 curl -s -L --proxy ${PROXY_URL} ${TEST_URL} -o ${OUTPUT_FILE}
 
-hits=$(curl -s ${MGMT_URL}/api/stats | jq '.hits')
+stats_after_hit=$(curl -s ${MGMT_URL}/api/stats)
+misses=$(echo ${stats_after_hit} | jq '.misses')
+hits=$(echo ${stats_after_hit} | jq '.hits')
+
+if [ "${misses}" -ne 1 ]; then
+    echo "--- FAILURE: Expected misses to remain 1, but got ${misses} ---"
+    exit 1
+fi
 if [ "${hits}" -ne 1 ]; then
     echo "--- FAILURE: Expected 1 hit, but got ${hits} ---"
     exit 1
@@ -59,3 +66,4 @@ echo "--- SUCCESS: Cache HIT validated. ---"
 
 echo "--- ALL END-TO-END TESTS PASSED ---"
 exit 0
+

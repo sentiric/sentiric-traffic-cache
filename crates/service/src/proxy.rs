@@ -11,7 +11,6 @@ use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tracing::{error, info, instrument, warn, Instrument};
 
-/// Ana proxy sunucusunu çalıştırır.
 pub async fn run_server(
     addr: SocketAddr,
     ca: Arc<CertificateAuthority>,
@@ -19,18 +18,15 @@ pub async fn run_server(
 ) -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     info!("🚀 Proxy server listening on http://{}", addr);
-
     loop {
         let (stream, client_addr) = listener.accept().await?;
         let ca_clone = ca.clone();
         let cache_clone = cache.clone();
-
         let service = service_fn(move |req| {
             let ca = ca_clone.clone();
             let cache = cache_clone.clone();
             proxy_service(req, ca, cache)
         });
-
         tokio::spawn(
             async move {
                 if let Err(err) = Http::new()
@@ -51,7 +47,6 @@ pub async fn run_server(
     }
 }
 
-/// Gelen her bir isteği işleyen ana servis fonksiyonu.
 async fn proxy_service(
     req: Request<Body>,
     ca: Arc<CertificateAuthority>,
@@ -84,7 +79,6 @@ async fn proxy_service(
     }
 }
 
-/// Gelen HTTP isteklerini işler.
 #[instrument(skip(req, cache), fields(uri = %req.uri()))]
 async fn serve_http(
     req: Request<Body>,
@@ -97,6 +91,8 @@ async fn serve_http(
     if let Some(cached_body) = cache.get(&cache_key).await {
         return Ok(Response::new(cached_body));
     }
+    
+    cache.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     match downloader::forward_request(req).await {
         Ok(mut response) => {
@@ -114,13 +110,12 @@ async fn serve_http(
         Err(e) => {
             error!("Failed to forward request: {}", e);
             let mut resp = Response::new(Body::from("Upstream request failed"));
-            *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
+            *resp.status_mut() = http::StatusCode::BAD_REQUEST;
             Ok(resp)
         }
     }
 }
 
-/// Bir CONNECT tünelini sonlandırır ve şifreli trafiği işlemeye başlar.
 #[instrument(skip_all, fields(host = %host))]
 async fn serve_https(
     upgraded: upgrade::Upgraded,
@@ -129,7 +124,6 @@ async fn serve_https(
     cache: Arc<CacheManager>,
 ) -> Result<()> {
     info!("Handling CONNECT request, performing TLS handshake");
-    // DÜZELTME BURADA: Gereksiz `&` kaldırıldı.
     let server_config = ca
         .get_server_config(host.split(':').next().unwrap_or(&host))
         .context("Failed to get server config for domain")?;
