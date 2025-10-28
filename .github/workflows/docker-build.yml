@@ -1,0 +1,45 @@
+name: Docker Build CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  # cli kratının adını ve imaj adını burada tanımlıyoruz
+  CRATE_NAME: sentiric-cli
+  IMAGE_NAME: sentiric-traffic-cache
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Docker build cache'ini etkinleştirerek sonraki build'leri hızlandırıyoruz
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build Docker image
+        run: |
+          docker build . \
+            --tag ${{ env.IMAGE_NAME }}:latest \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --build-arg CRATE_NAME=${{ env.CRATE_NAME }}
+
+      # Bu, cache'in bir sonraki çalıştırmada kullanılmasını sağlar
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
