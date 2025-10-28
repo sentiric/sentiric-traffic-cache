@@ -15,7 +15,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # DÜZELTME: Tauri'nin sistem bağımlılıklarını kuruyoruz.
       - name: Install Tauri system dependencies (for Linux)
         run: |
           sudo apt-get update
@@ -28,7 +27,8 @@ jobs:
             libssl-dev \
             libgtk-3-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev
+            librsvg2-dev \
+            libsoup2.4-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
