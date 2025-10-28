@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Sadece v0.1.0 gibi tag'lerde tetiklenir
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sentiric-traffic-cache
+
+jobs:
+  # Önce kodun hala çalıştığından emin ol
+  test_before_release:
+    name: Run Tests Before Release
+    uses: ./.github/workflows/ci.yml
+
+  create_release_and_build_binaries:
+    name: Create Release and Build Binaries
+    runs-on: ubuntu-latest
+    needs: test_before_release
+    permissions:
+      contents: write # Release oluşturmak ve dosya yüklemek için
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross-compilation targets
+        run: |
+          rustup target add x86_64-unknown-linux-gnu
+          rustup target add x86_64-pc-windows-gnu
+          rustup target add x86_64-apple-darwin
+
+      - name: Build binaries for all targets
+        run: |
+          cargo build -p sentiric-cli --release --target x86_64-unknown-linux-gnu
+          cargo build -p sentiric-cli --release --target x86_64-pc-windows-gnu
+          cargo build -p sentiric-cli --release --target x86_64-apple-darwin
+
+      - name: Package binaries
+        run: |
+          # Linux
+          tar -czvf sentiric-cli-linux-amd64.tar.gz -C target/x86_64-unknown-linux-gnu/release sentiric-cli
+          # Windows
+          zip sentiric-cli-windows-amd64.zip target/x86_64-pc-windows-gnu/release/sentiric-cli.exe
+          # macOS
+          tar -czvf sentiric-cli-macos-amd64.tar.gz -C target/x86_64-apple-darwin/release sentiric-cli
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Bu, release notlarını tag'in açıklamasından alır ve dosyaları yükler
+          files: |
+            sentiric-cli-linux-amd64.tar.gz
+            sentiric-cli-windows-amd64.zip
+            sentiric-cli-macos-amd64.tar.gz
+
+  push_docker_image:
+    name: Push Docker Image to GHCR
+    runs-on: ubuntu-latest
+    needs: test_before_release
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

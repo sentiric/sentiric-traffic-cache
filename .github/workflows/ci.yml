@@ -1,30 +1,24 @@
-name: Continuous Integration & Delivery
+name: Continuous Integration
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
-
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sentiric-traffic-cache
+    branches: [ "**" ] # Artık tüm branch'lerde çalışacak
 
 jobs:
   test_and_lint:
-    name: Unit Test and Lint
+    name: Test and Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-
       - name: Run linter (clippy)
         run: cargo clippy --workspace --all-targets -- -D warnings
-
       - name: Run unit tests
         run: cargo test --workspace
 
@@ -35,41 +29,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
       - name: Run integration tests with Docker Compose
         working-directory: ./tests
-        # DÜZELTME BURADA: docker-compose -> docker compose
         run: docker compose -f docker-compose.integration.yml up --build --exit-code-from tester
-        
-  build_and_push_image:
-    name: Build and Push Docker Image
-    needs: integration_test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
