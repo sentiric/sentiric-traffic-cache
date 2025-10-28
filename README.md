@@ -1,14 +1,23 @@
 # 🚀 sentiric-traffic-cache
 
-[![Continuous Integration & Delivery](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml)
-
-[![Release](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/release.yml/badge.svg)](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/release.yml)
+[![Continuous Integration](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/sentiric/sentiric-traffic-cache/actions/workflows/ci.yml)
 
 **The Invisible Network Assistant.** An intelligent, universal caching layer designed to accelerate development workflows and simplify network management.
 
 > This project is being built based on the vision defined in [docs/PROJECT_GENESIS.md](docs/PROJECT_GENESIS.md).
 
-## 🏃‍♂️ Quick Start (Development Environment)
+## 🏃‍♂️ Quick Start
+
+### Docker (Recommended)
+The latest Docker image is always available from the GitHub Container Registry:
+```bash
+docker pull ghcr.io/sentiric/sentiric-traffic-cache:latest
+```
+
+### Binaries
+Pre-compiled binaries for Linux and Windows are available on the [**Releases Page**](https://github.com/sentiric/sentiric-traffic-cache/releases).
+
+## 💻 Development
 
 This project is designed to be built and run inside Docker to ensure a consistent and reproducible environment.
 
@@ -29,6 +38,6 @@ This project is designed to be built and run inside Docker to ensure a consisten
     ```bash
     docker compose up --build
     ```
-The first build may take some time. Subsequent builds will be much faster thanks to Docker's layer caching.
 
-The proxy will be running and available at `http://127.0.0.1:3128`. You can now configure your browser or system to use this address.
+
+---
