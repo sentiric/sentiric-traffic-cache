@@ -59,12 +59,9 @@ pub async fn run() -> Result<()> {
     });
 
     let dns_task = if settings.dns.enabled {
-        // DÜZELTME: `run_server`'a tüm settings objesini klonlayıp veriyoruz.
         let dns_settings = settings.clone();
         Some(tokio::spawn(async move {
-            if let Err(e) = dns::run_server(&dns_settings).await {
-                error!("DNS server failed: {}", e);
-            }
+            dns::run_server(&dns_settings).await
         }))
     } else {
         info!("DNS server is disabled in config.");
@@ -84,8 +81,13 @@ pub async fn run() -> Result<()> {
         _ = tokio::signal::ctrl_c() => { info!("Shutdown signal received."); }
         res = proxy_task => { if let Err(e) = res? { error!("Proxy server exited: {}", e); } }
         _res = mgmt_task => { error!("Management server exited."); }
-        res = async { if let Some(task) = dns_task { task.await.unwrap() } else { futures_util::future::pending().await } } => {
-            if let Err(e) = res { error!("DNS server exited: {}", e); }
+        // DÜZELTME: 'res' in tipi Result<Result<...>> olduğu için iki kat kontrol ediyoruz.
+        res = async { if let Some(task) = dns_task { task.await } else { futures_util::future::pending().await } } => {
+             match res {
+                Ok(Ok(_)) => info!("DNS server exited cleanly."),
+                Ok(Err(e)) => error!("DNS server exited with an error: {}", e),
+                Err(e) => error!("DNS server task failed to execute: {}", e),
+             }
         }
         _ = stats_broadcaster_task => { info!("Stats broadcaster exited."); }
     }

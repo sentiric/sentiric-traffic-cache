@@ -3,10 +3,9 @@
 //! This crate contains the shared business logic, data structures, and traits
 //! for the `sentiric-traffic-cache`.
 
-use serde::{Deserialize, Serialize}; // Serialize'ı da ekliyoruz
+use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 
-// Stats yapısını core'a taşıyoruz, çünkü hem service hem de management
-// tarafından kullanılacak.
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
@@ -17,21 +16,17 @@ pub struct Stats {
     pub total_disk_size_bytes: u64,
 }
 
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub proxy: Proxy,
     pub certs: Certs,
     pub cache: Cache,
     pub management: Management,
-    pub dns: Dns, // <-- EKLENDİ
-}
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Dns { // <-- EKLENDİ
-    pub enabled: bool,
-    pub port: u16,
-    pub bind_address: String,
+    // DÜZELTME: 'dns' bölümünü 'Default::default' ile opsiyonel hale getiriyoruz
+    // ki eski config dosyaları da çalışabilsin.
+    #[serde(default)] 
+    pub dns: Dns,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -41,7 +36,7 @@ pub struct Proxy {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Management { // <-- EKLENDİ
+pub struct Management {
     pub port: u16,
     pub bind_address: String,
 }
@@ -54,4 +49,25 @@ pub struct Certs {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Cache {
     pub path: String,
+}
+
+// DÜZELTME: 'Dns' struct'ının tam ve doğru hali
+#[derive(Debug, Deserialize, Clone)]
+pub struct Dns {
+    pub enabled: bool,
+    pub port: u16,
+    pub bind_address: String,
+    pub response_ip: IpAddr,
+}
+
+// DÜZELTME: 'Dns' için varsayılan değerler
+impl Default for Dns {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            port: 53,
+            bind_address: "0.0.0.0".to_string(),
+            response_ip: "127.0.0.1".parse().unwrap(),
+        }
+    }
 }
