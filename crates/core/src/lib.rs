@@ -22,9 +22,6 @@ pub struct Settings {
     pub certs: Certs,
     pub cache: Cache,
     pub management: Management,
-
-    // DÜZELTME: 'dns' bölümünü 'Default::default' ile opsiyonel hale getiriyoruz
-    // ki eski config dosyaları da çalışabilsin.
     #[serde(default)] 
     pub dns: Dns,
 }
@@ -51,7 +48,6 @@ pub struct Cache {
     pub path: String,
 }
 
-// DÜZELTME: 'Dns' struct'ının tam ve doğru hali
 #[derive(Debug, Deserialize, Clone)]
 pub struct Dns {
     pub enabled: bool,
@@ -60,7 +56,6 @@ pub struct Dns {
     pub response_ip: IpAddr,
 }
 
-// DÜZELTME: 'Dns' için varsayılan değerler
 impl Default for Dns {
     fn default() -> Self {
         Self {

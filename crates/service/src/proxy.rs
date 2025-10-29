@@ -95,7 +95,6 @@ async fn serve_http(
     
     info!(target_uri = %uri_string, "Handling HTTP request");
     
-    // DÜZELTME: cache_key'i ödünç almak yerine, string'in kendisi olarak tutuyoruz.
     let cache_key = uri_string.clone();
 
     if let Some(cached_body) = cache.get(&cache_key).await {
@@ -107,12 +106,10 @@ async fn serve_http(
     // İsteği, potansiyel olarak yeniden oluşturulmuş URI ile klonla.
     let mut builder = Request::builder()
         .method(req.method().clone())
-        // DÜZELTME: 'uri_string'i taşımak yerine klonluyoruz.
         .uri(&uri_string) 
         .version(req.version());
     *builder.headers_mut().unwrap() = req.headers().clone();
     
-    // .body() metodu sahiplik aldığı için, `req.into_body()` kullanmak en temizidir.
     let new_req = builder.body(req.into_body()).unwrap();
 
     match downloader::forward_request(new_req).await {

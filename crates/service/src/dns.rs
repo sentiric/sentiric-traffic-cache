@@ -48,7 +48,6 @@ impl RequestHandler for DnsHandler {
         let mut header = *request.header();
         header.set_authoritative(true);
         
-        // DÜZELTME: `empty_answers`'ı `if` bloğunun dışına taşıyoruz.
         let empty_answers: Vec<Record> = vec![]; 
         let response = if answers.is_empty() {
             header.set_response_code(ResponseCode::NXDomain);

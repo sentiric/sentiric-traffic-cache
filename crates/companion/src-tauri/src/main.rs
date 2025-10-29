@@ -24,7 +24,6 @@ fn main() {
     tauri::Builder::default()
         .system_tray(system_tray)
         .on_system_tray_event(|app, event| {
-            // DÜZELTME: 'match' yerine 'if let' kullanarak kodu basitleştiriyoruz.
             if let SystemTrayEvent::MenuItemClick { id, .. } = event {
                 match id.as_str() {
                     "quit" => {

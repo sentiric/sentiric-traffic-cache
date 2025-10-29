@@ -10,7 +10,6 @@ bind_address = "0.0.0.0"
 enabled = true
 port = 53
 bind_address = "0.0.0.0"
-# DÜZELTME: Eksik olan 'response_ip' alanını ekliyoruz.
 response_ip = "127.0.0.1"
 
 [certs]
