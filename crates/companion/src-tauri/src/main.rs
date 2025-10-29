@@ -6,11 +6,9 @@
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
 use std::process::Command;
 use std::env;
-use local_ip::local_ip; // <-- DOĞRUSU BU
+use network_interface::{NetworkInterface, NetworkInterfaceConfig}; // <-- YENİ IMPORT
 
 const PROXY_SERVER: &str = "127.0.0.1:3128";
-
-// --- YENİ STRUCT VE KOMUT ---
 
 #[derive(serde::Serialize, Clone)]
 struct NetworkInfo {
@@ -19,16 +17,24 @@ struct NetworkInfo {
 
 #[tauri::command]
 fn get_network_info() -> Result<NetworkInfo, String> {
-    let my_local_ip = local_ip().map_err(|e| format!("Yerel IP adresi alınamadı: {}", e))?;
-    Ok(NetworkInfo {
-        ip_address: my_local_ip.to_string(),
-    })
-}
+    let interfaces = NetworkInterface::show().map_err(|e| format!("Ağ arayüzleri alınamadı: {}", e))?;
+    
+    for iface in interfaces {
+        for addr in iface.addr {
+            // Sadece IPv4 adreslerini al, loopback (127.0.0.1) adresini atla
+            if addr.ip().is_ipv4() && !addr.ip().is_loopback() {
+                return Ok(NetworkInfo {
+                    ip_address: addr.ip().to_string(),
+                });
+            }
+        }
+    }
 
+    Err("Uygun bir yerel ağ IP adresi bulunamadı.".to_string())
+}
 
 #[tauri::command]
 fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
-    // ... (bu fonksiyon aynı kalıyor)
     let cert_path = app_handle.path_resolver()
         .app_config_dir()
         .ok_or("Uygulama yapılandırma dizini bulunamadı.")?
@@ -59,7 +65,6 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn enable_system_proxy() -> Result<(), String> {
-    // ... (bu fonksiyon aynı kalıyor)
     println!("Sistem proxy'si etkinleştiriliyor: {}", PROXY_SERVER);
     #[cfg(target_os = "windows")] {
         Command::new("reg").args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f"]).output().map_err(|e| format!("ProxyEnable ayarı yapılamadı: {}", e))?;
@@ -85,7 +90,6 @@ fn enable_system_proxy() -> Result<(), String> {
 
 #[tauri::command]
 fn disable_system_proxy() -> Result<(), String> {
-    // ... (bu fonksiyon aynı kalıyor)
     println!("Sistem proxy'si devre dışı bırakılıyor.");
     #[cfg(target_os = "windows")] {
         Command::new("reg").args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"]).output().map_err(|e| format!("Proxy devre dışı bırakılamadı: {}", e))?;
@@ -104,9 +108,7 @@ fn disable_system_proxy() -> Result<(), String> {
     Ok(())
 }
 
-
 fn main() {
-    // ... (main fonksiyonunun başı aynı kalıyor)
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
@@ -136,7 +138,7 @@ fn main() {
             install_ca_certificate,
             enable_system_proxy,
             disable_system_proxy,
-            get_network_info // <-- YENİ KOMUTU KAYDET
+            get_network_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
