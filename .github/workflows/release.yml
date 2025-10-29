@@ -29,7 +29,6 @@ jobs:
         working-directory: ./web
         run: npm ci
 
-      # --- YENİ ADIM ---
       - name: Build frontend
         working-directory: ./web
         run: npm run build
@@ -40,20 +39,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
+      # --- DÜZELTME: --no-bundle ve ayrı appimage adımları kaldırıldı ---
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: "crates/companion"
-          args: ${{ matrix.platform == 'ubuntu-latest' && '--no-bundle' || '' }}
-
-      - name: Build appimage separately
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          cd crates/companion
-          cargo tauri build -- --bundle appimage
-
+            
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
