@@ -67,7 +67,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts-${{ matrix.platform }}
-          path: crates/companion/src-tauri/target/release/bundle/
+          # --- BU SEFER KESİNLİKLE DOĞRU YOL ---
+          path: target/release/bundle/
 
   publish-release:
     name: Publish GitHub Release
