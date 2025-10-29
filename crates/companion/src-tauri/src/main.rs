@@ -4,7 +4,7 @@
 )]
 
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
-use std::process::{Command, Stdio};
+use std::process::Command; // Stdio kaldırıldı
 use std::env;
 
 // --- GÜNCELLENMİŞ KOMUT ---
@@ -28,7 +28,7 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
     {
         // Windows: `certutil` kullanarak sertifikayı "Trusted Root Certification Authorities" deposuna ekle.
         let output = Command::new("certutil")
-            .args(&["-addstore", "-f", "ROOT", cert_path_str])
+            .args(["-addstore", "-f", "ROOT", cert_path_str]) // & kaldırıldı (isteğe bağlı, ama clippy önerir)
             .output()
             .map_err(|e| format!("certutil komutu çalıştırılamadı: {}", e))?;
         
@@ -41,7 +41,7 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
     {
         // macOS: `security` komutu kullanarak sertifikayı System.keychain'e ekle ve güvenilir yap.
         let output = Command::new("sudo")
-            .args(&[
+            .args([ // & kaldırıldı (isteğe bağlı, ama clippy önerir)
                 "security",
                 "add-trusted-cert",
                 "-d",
@@ -64,7 +64,7 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
         let cert_dest = "/usr/local/share/ca-certificates/sentiric-ca.crt";
         
         let copy_output = Command::new("sudo")
-            .args(&["cp", cert_path_str, cert_dest])
+            .args(["cp", cert_path_str, cert_dest]) // & kaldırıldı (CLİPPY HATASININ ÇÖZÜMÜ)
             .output()
             .map_err(|e| format!("cp komutu çalıştırılamadı: {}", e))?;
         if !copy_output.status.success() {
