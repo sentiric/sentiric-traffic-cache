@@ -7,7 +7,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "Sentiric Traffic Cache",
+    "productName": "SentiricTrafficCache",
     "version": "0.1.0"
   },
   "tauri": {
