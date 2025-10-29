@@ -92,32 +92,31 @@ fn enable_system_proxy() -> Result<(), String> {
     {
         // Windows: Internet Settings registry anahtarlarını güncelle.
         Command::new("reg")
-            .args(&["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f"])
+            .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f"])
             .output().map_err(|e| format!("ProxyEnable ayarı yapılamadı: {}", e))?;
         Command::new("reg")
-            .args(&["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyServer", "/d", PROXY_SERVER, "/f"])
+            .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyServer", "/d", PROXY_SERVER, "/f"])
             .output().map_err(|e| format!("ProxyServer ayarı yapılamadı: {}", e))?;
     }
 
     #[cfg(target_os = "macos")]
     {
         // macOS: Aktif ağ servisini bul ve `networksetup` ile proxy'yi ayarla.
-        // Bu komutlar yönetici izni gerektirmez.
-        let services = ["Wi-Fi", "Ethernet", "Display Ethernet"]; // Yaygın servis adları
+        let services = ["Wi-Fi", "Ethernet", "Display Ethernet"]; 
         for service in services.iter() {
-            Command::new("networksetup").args(&["-setwebproxy", service, "127.0.0.1", "3128"]).output().ok();
-            Command::new("networksetup").args(&["-setsecurewebproxy", service, "127.0.0.1", "3128"]).output().ok();
+            Command::new("networksetup").args(["-setwebproxy", service, "127.0.0.1", "3128"]).output().ok();
+            Command::new("networksetup").args(["-setsecurewebproxy", service, "127.0.0.1", "3128"]).output().ok();
         }
     }
 
     #[cfg(target_os = "linux")]
     {
         // Linux (GNOME/GTK): `gsettings` kullanarak proxy ayarlarını yap.
-        Command::new("gsettings").args(&["set", "org.gnome.system.proxy", "mode", "'manual'"]).output().map_err(|e| format!("gsettings mode ayarlanamadı: {}", e))?;
-        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.http", "host", "'127.0.0.1'"]).output().map_err(|e| format!("gsettings http host ayarlanamadı: {}", e))?;
-        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.http", "port", "3128"]).output().map_err(|e| format!("gsettings http port ayarlanamadı: {}", e))?;
-        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.https", "host", "'127.0.0.1'"]).output().map_err(|e| format!("gsettings https host ayarlanamadı: {}", e))?;
-        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.https", "port", "3128"]).output().map_err(|e| format!("gsettings https port ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(["set", "org.gnome.system.proxy", "mode", "'manual'"]).output().map_err(|e| format!("gsettings mode ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(["set", "org.gnome.system.proxy.http", "host", "'127.0.0.1'"]).output().map_err(|e| format!("gsettings http host ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(["set", "org.gnome.system.proxy.http", "port", "3128"]).output().map_err(|e| format!("gsettings http port ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(["set", "org.gnome.system.proxy.https", "host", "'127.0.0.1'"]).output().map_err(|e| format!("gsettings https host ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(["set", "org.gnome.system.proxy.https", "port", "3128"]).output().map_err(|e| format!("gsettings https port ayarlanamadı: {}", e))?;
     }
     
     println!("Sistem proxy'si başarıyla etkinleştirildi.");
@@ -131,7 +130,7 @@ fn disable_system_proxy() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         Command::new("reg")
-            .args(&["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"])
+            .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"])
             .output().map_err(|e| format!("Proxy devre dışı bırakılamadı: {}", e))?;
     }
 
@@ -139,14 +138,14 @@ fn disable_system_proxy() -> Result<(), String> {
     {
         let services = ["Wi-Fi", "Ethernet", "Display Ethernet"];
         for service in services.iter() {
-            Command::new("networksetup").args(&["-setwebproxystate", service, "off"]).output().ok();
-            Command::new("networksetup").args(&["-setsecurewebproxystate", service, "off"]).output().ok();
+            Command::new("networksetup").args(["-setwebproxystate", service, "off"]).output().ok();
+            Command::new("networksetup").args(["-setsecurewebproxystate", service, "off"]).output().ok();
         }
     }
 
     #[cfg(target_os = "linux")]
     {
-        Command::new("gsettings").args(&["set", "org.gnome.system.proxy", "mode", "'none'"]).output().map_err(|e| format!("gsettings mode sıfırlanamadı: {}", e))?;
+        Command::new("gsettings").args(["set", "org.gnome.system.proxy", "mode", "'none'"]).output().map_err(|e| format!("gsettings mode sıfırlanamadı: {}", e))?;
     }
 
     println!("Sistem proxy'si başarıyla devre dışı bırakıldı.");
