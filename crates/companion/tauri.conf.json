@@ -31,7 +31,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "category": "Network",
+      "category": "DeveloperTool",
       "shortDescription": "An intelligent, universal caching layer for developers and power-users.",
       "longDescription": "Sentiric Traffic Cache is an invisible network assistant designed to speed up development workflows and simplify network management. It acts as a smart proxy, caching network requests to save time and bandwidth, providing real-time insights into your network traffic.",
       "deb": {
