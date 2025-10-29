@@ -67,7 +67,8 @@ async fn handle_list_entries(cache: Arc<CacheManager>) -> Result<impl warp::Repl
         Ok(entries) => Ok(warp::reply::json(&entries)),
         Err(e) => {
             warn!("Failed to list cache entries: {}", e);
-            Err(warp::reject::custom(e))
+            // HATA DÜZELTMESİ: `anyhow::Error` doğrudan `Reject` olmadığı için genel bir rejection döndürüyoruz.
+            Err(warp::reject::not_found())
         }
     }
 }
@@ -77,7 +78,8 @@ async fn handle_clear_cache(cache: Arc<CacheManager>) -> Result<impl warp::Reply
         Ok(_) => Ok(warp::reply::with_status("Cache cleared", http::StatusCode::OK)),
         Err(e) => {
             warn!("Failed to clear cache: {}", e);
-            Err(warp::reject::custom(e))
+            // HATA DÜZELTMESİ: `anyhow::Error` doğrudan `Reject` olmadığı için genel bir rejection döndürüyoruz.
+            Err(warp::reject::not_found())
         }
     }
 }
