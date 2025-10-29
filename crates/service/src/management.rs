@@ -1,7 +1,7 @@
 use crate::cache::CacheManager;
 use anyhow::Result;
 use futures_util::{StreamExt, SinkExt};
-use sentiric_core::Stats;
+use sentiric_core::{Stats, FlowEntry}; // <-- FlowEntry eklendi
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
@@ -15,6 +15,7 @@ use tracing::{info, warn};
 #[serde(tag = "type")]
 pub enum WsEvent {
     StatsUpdated(Stats),
+    FlowUpdated(FlowEntry), // <-- YENİ OLAY
 }
 
 lazy_static::lazy_static! {

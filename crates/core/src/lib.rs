@@ -74,3 +74,14 @@ pub struct CacheEntryInfo {
     pub key: String,
     pub size_bytes: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FlowEntry {
+    pub id: String,
+    pub method: String,
+    pub uri: String,
+    pub status_code: u16,
+    pub response_size_bytes: u64,
+    pub is_hit: bool,
+}

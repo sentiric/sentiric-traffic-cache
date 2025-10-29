@@ -3116,6 +3116,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trust-dns-server",
+ "uuid",
  "warp",
 ]
 

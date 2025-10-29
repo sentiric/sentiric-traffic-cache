@@ -1,6 +1,7 @@
 use crate::certs::CertificateAuthority;
 use crate::cache::CacheManager;
 use crate::downloader;
+use crate::management::{EVENT_BROADCASTER, WsEvent}; // <-- Eklendi
 use anyhow::{Context, Result};
 use hyper::server::conn::Http;
 use hyper::service::service_fn;
@@ -10,12 +11,15 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tracing::{error, info, instrument, warn, Instrument};
+use sentiric_core::FlowEntry; // <-- Eklendi
+use uuid::Uuid; // <-- Eklendi
 
 pub async fn run_server(
     addr: SocketAddr,
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<()> {
+    // ... fonksiyonun başı aynı ...
     let listener = TcpListener::bind(addr).await?;
     info!("🚀 Proxy server listening on http://{}", addr);
     loop {
@@ -52,6 +56,7 @@ async fn proxy_service(
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
+    // ... CONNECT kısmı aynı ...
     if Method::CONNECT == req.method() {
         if let Some(host) = req.uri().authority().map(|auth| auth.to_string()) {
             let cache_clone = cache.clone();
@@ -84,10 +89,8 @@ async fn serve_http(
     req: Request<Body>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
-    // 'Host' başlığından gerçek hedefi al.
     let host = req.headers().get(hyper::header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
     let uri_string = if !host.is_empty() && req.uri().authority().is_none() {
-        // Bu, şeffaf bir proxy isteğidir. URI'yi yeniden oluşturalım.
         format!("http://{}{}", host, req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/"))
     } else {
         req.uri().to_string()
@@ -95,15 +98,29 @@ async fn serve_http(
     
     info!(target_uri = %uri_string, "Handling HTTP request");
     
+    // --- AKIŞ YAKALAMA BAŞLANGICI ---
+    let mut flow = FlowEntry {
+        id: Uuid::new_v4().to_string(),
+        method: req.method().to_string(),
+        uri: uri_string.clone(),
+        status_code: 0,
+        response_size_bytes: 0,
+        is_hit: false,
+    };
+
     let cache_key = uri_string.clone();
 
     if let Some(cached_body) = cache.get(&cache_key).await {
+        flow.is_hit = true;
+        // Gerçek boyut `bytes_saved` içinde hesaplandığı için burada tekrar hesaplamaya gerek yok,
+        // ama arayüzde göstermek için `content-length` başlığına bakılabilir. Şimdilik 0 bırakıyoruz.
+        flow.status_code = 200; // Varsayım, genellikle 200 OK olur
+        let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(flow));
         return Ok(Response::new(cached_body));
     }
     
     cache.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-    // İsteği, potansiyel olarak yeniden oluşturulmuş URI ile klonla.
     let mut builder = Request::builder()
         .method(req.method().clone())
         .uri(&uri_string) 
@@ -114,6 +131,13 @@ async fn serve_http(
 
     match downloader::forward_request(new_req).await {
         Ok(mut response) => {
+            // --- AKIŞ GÜNCELLEME ---
+            flow.status_code = response.status().as_u16();
+            if let Some(content_length) = response.headers().get(hyper::header::CONTENT_LENGTH) {
+                flow.response_size_bytes = content_length.to_str().unwrap_or("0").parse().unwrap_or(0);
+            }
+            let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(flow));
+
             let body_stream = std::mem::replace(response.body_mut(), Body::empty());
             match cache.put_stream(cache_key, body_stream).await {
                 Ok(body_for_client) => {
@@ -134,6 +158,7 @@ async fn serve_http(
     }
 }
 
+
 #[instrument(skip_all, fields(host = %host))]
 async fn serve_https(
     upgraded: upgrade::Upgraded,
@@ -141,6 +166,7 @@ async fn serve_https(
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<()> {
+    // ... fonksiyon aynı ...
     info!("Handling CONNECT request, performing TLS handshake");
     let server_config = ca
         .get_server_config(host.split(':').next().unwrap_or(&host))
