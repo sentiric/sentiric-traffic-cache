@@ -31,12 +31,16 @@ jobs:
             libsoup2.4-dev \
             libjavascriptcoregtk-4.1-dev
 
-      # DÜZELTME: Kütüphane versiyon uyumsuzluğunu çözmek için sembolik linkler oluşturuyoruz.
       - name: Create symlinks for webkit version compatibility
+        # DÜZELTME: Sadece .pc dosyalarını değil, .so kütüphane dosyalarını da linkliyoruz.
         run: |
-          sudo ln -s /usr/include/webkitgtk-4.1/webkit2/ /usr/include/webkit2gtk-4.0
-          sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
-          sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc
+          cd /usr/lib/x86_64-linux-gnu/
+          # pkg-config için linkler
+          sudo ln -s webkit2gtk-4.1.pc webkit2gtk-4.0.pc
+          sudo ln -s javascriptcoregtk-4.1.pc javascriptcoregtk-4.0.pc
+          # Linker için linkler
+          sudo ln -s libwebkit2gtk-4.1.so libwebkit2gtk-4.0.so
+          sudo ln -s libjavascriptcoregtk-4.1.so libjavascriptcoregtk-4.0.so
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -47,6 +51,7 @@ jobs:
       - name: Run unit tests
         run: cargo test --workspace
 
+  # ... (frontend_build ve integration_test adımları aynı kalacak)
   frontend_build:
     name: Frontend Build & Lint
     runs-on: ubuntu-latest
