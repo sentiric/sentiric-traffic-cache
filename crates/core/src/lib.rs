@@ -6,15 +6,28 @@
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct Stats {
-    pub hits: u64,
-    pub misses: u64,
-    pub total_requests: u64,
-    pub disk_items: u64,
-    pub total_disk_size_bytes: u64,
-    pub bytes_saved: u64, // <-- YENİ
+// --- YENİ KURAL YAPILARI ---
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub enum Action {
+    Allow,
+    Block,
+    BypassCache,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuleCondition {
+    Domain(String),
+    UrlPattern(String),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Rule {
+    pub name: String,
+    pub condition: RuleCondition,
+    pub action: Action,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -25,6 +38,19 @@ pub struct Settings {
     pub management: Management,
     #[serde(default)] 
     pub dns: Dns,
+    #[serde(default)] // Kurallar opsiyonel olsun
+    pub rules: Vec<Rule>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Stats {
+    pub hits: u64,
+    pub misses: u64,
+    pub total_requests: u64,
+    pub disk_items: u64,
+    pub total_disk_size_bytes: u64,
+    pub bytes_saved: u64, // <-- YENİ
 }
 
 #[derive(Debug, Deserialize, Clone)]

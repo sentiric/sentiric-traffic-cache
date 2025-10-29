@@ -11,8 +11,10 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tracing::{error, info, instrument, warn, Instrument};
-use sentiric_core::FlowEntry; // <-- Eklendi
 use uuid::Uuid; // <-- Eklendi
+
+use crate::rules::RuleEngine; // <-- YENİ
+use sentiric_core::{FlowEntry, Action}; // <-- Action eklendi
 
 pub async fn run_server(
     addr: SocketAddr,
@@ -89,15 +91,37 @@ async fn serve_http(
     req: Request<Body>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
+    // --- YENİ KURAL MOTORU KONTROLÜ ---
+    let rule_engine = RuleEngine::new(crate::config::get().rules.clone());
+
     let host = req.headers().get(hyper::header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
     let uri_string = if !host.is_empty() && req.uri().authority().is_none() {
         format!("http://{}{}", host, req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/"))
     } else {
         req.uri().to_string()
     };
+
+    match rule_engine.match_action(&uri_string) {
+        Action::Block => {
+            info!("Request blocked by rule engine: {}", uri_string);
+            let mut resp = Response::new(Body::from("Blocked by Sentiric Traffic Cache rule."));
+            *resp.status_mut() = http::StatusCode::FORBIDDEN;
+            return Ok(resp);
+        }
+        Action::BypassCache => {
+            info!("Request bypassing cache by rule engine: {}", uri_string);
+            return downloader::forward_request(req).await.map_err(|e| {
+                error!("Failed to forward request (bypassed): {}", e);
+                hyper::Error::from(e)
+            });
+        }
+        Action::Allow => {
+            // Devam et...
+        }
+    }    
     
     info!(target_uri = %uri_string, "Handling HTTP request");
-    
+
     // --- AKIŞ YAKALAMA BAŞLANGICI ---
     let mut flow = FlowEntry {
         id: Uuid::new_v4().to_string(),

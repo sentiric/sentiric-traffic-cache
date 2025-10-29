@@ -19,6 +19,7 @@ pub mod downloader;
 pub mod dns;
 pub mod management;
 pub mod proxy;
+pub mod rules; // <-- YENİ
 
 pub async fn run() -> Result<()> {
     let subscriber = FmtSubscriber::builder().with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?)).with_thread_ids(true).finish();

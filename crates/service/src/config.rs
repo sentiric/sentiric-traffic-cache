@@ -7,6 +7,7 @@ static SETTINGS: OnceLock<Settings> = OnceLock::new();
 pub fn init() -> Result<()> {
     let settings = config::Config::builder()
         .add_source(config::File::with_name("config.toml").required(true))
+        .add_source(config::File::with_name("rules.toml").required(false)) // <-- YENİ
         .build()
         .context("Failed to build configuration")?
         .try_deserialize()

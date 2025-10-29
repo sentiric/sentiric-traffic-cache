@@ -3116,8 +3116,10 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trust-dns-server",
+ "url",
  "uuid",
  "warp",
+ "wildmatch",
 ]
 
 [[package]]
@@ -4523,6 +4525,12 @@ dependencies = [
  "windows-bindgen",
  "windows-metadata",
 ]
+
+[[package]]
+name = "wildmatch"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39b7d07a236abaef6607536ccfaf19b396dbe3f5110ddb73d39f4562902ed382"
 
 [[package]]
 name = "winapi"

@@ -1,0 +1,27 @@
+# Sentiric Traffic Cache - Kural Dosyası Örneği
+
+# Kural 1: Belirli bir domain'i engelle
+[[rules]]
+name = "Block Social Media"
+condition = { domain = "twitter.com" }
+action = "block"
+
+# Kural 2: Video sitelerinde cache'i atla (dinamik içerik)
+[[rules]]
+name = "Bypass Video Streaming"
+condition = { domain = "youtube.com" }
+action = "bypass-cache"
+
+# Kural 3: URL'de 'analytics' geçen her şeyi engelle
+[[rules]]
+name = "Block Analytics"
+condition = { url-pattern = "*analytics*" }
+action = "block"
+
+# Kural 4: Her şeye izin ver (varsayılan)
+# Not: Eğer hiçbir kural eşleşmezse, varsayılan davranış 'allow' olacaktır.
+# Bu kuralı açıkça eklemeye gerek yoktur, ancak örnek olarak gösterilmiştir.
+# [[rules]]
+# name = "Default Allow"
+# condition = { url-pattern = "*" }
+# action = "allow"
