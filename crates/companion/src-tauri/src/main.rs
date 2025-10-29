@@ -6,7 +6,7 @@
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
 use std::process::Command;
 use std::env;
-use local_ip_address::local_ip; // <-- YENİ IMPORT
+use local_ip::local_ip; // <-- DOĞRUSU BU
 
 const PROXY_SERVER: &str = "127.0.0.1:3128";
 
