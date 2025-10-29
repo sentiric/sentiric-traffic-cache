@@ -2,12 +2,14 @@ import { ComponentChild } from 'preact';
 import { useState } from 'preact/hooks';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
-import { Settings } from './pages/Settings'; // YENİ
+import { Settings } from './pages/Settings';
+import { ConnectDevice } from './pages/ConnectDevice'; // YENİ
 
-type Page = 'dashboard' | 'settings'; // YENİ
+type Page = 'dashboard' | 'settings' | 'connect_device'; // YENİ
 const pageComponents: Record<Page, () => ComponentChild> = {
   dashboard: Dashboard,
-  settings: Settings, // YENİ
+  settings: Settings,
+  connect_device: ConnectDevice, // YENİ
 };
 
 export function App() {

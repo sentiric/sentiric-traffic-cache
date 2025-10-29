@@ -1872,6 +1872,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6373607a59f0be73a39b6fe456b8192fcc3585f602af20751600e974dd455e77"
 
 [[package]]
+name = "local-ip-address"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1585e81da09fbd991a2fcf0b9a84c5509d8b087ebaa2c8f7c4fdc24e37a5524c"
+dependencies = [
+ "libc",
+ "thiserror",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3061,6 +3071,7 @@ name = "sentiric-companion"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "local-ip-address",
  "sentiric-service",
  "serde",
  "serde_json",
