@@ -1,10 +1,10 @@
 [package]
 name = "sentiric-companion"
-version = "0.1.0"
+version = "1.0.0"
 description = "Desktop companion for Sentiric Traffic Cache"
-authors = ["you"]
-license = ""
-repository = ""
+authors = ["Azmi SAHIN"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/sentiric/sentiric-traffic-cache"
 edition = "2021"
 rust-version = "1.76"
 
@@ -18,14 +18,14 @@ path = "src-tauri/src/main.rs"
 tauri-build = { version = "1.5" }
 
 [dependencies]
-sentiric-service = { path = "../service" } 
+sentiric-service = { path = "../service"}
 anyhow = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.6", features = ["shell-open", "system-tray"] }
-network-interface = "0.1.4" # <-- YENİ VE NİHAİ KÜTÜPHANE
+network-interface = "0.1.4"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
