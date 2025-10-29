@@ -1,10 +1,14 @@
-// Sadece backend'de VAR OLAN özellikleri tanımlıyoruz.
 export interface CacheStats {
   hits: number;
   misses: number;
   totalRequests: number;
   diskItems: number;
   totalDiskSizeBytes: number;
+}
+
+export interface CacheEntry {
+  key: string;
+  sizeBytes: number;
 }
 
 export type WsEvent =
@@ -16,6 +20,18 @@ export async function fetchStats(): Promise<CacheStats> {
   const response = await fetch(`${API_BASE}/stats`);
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
+}
+
+export async function fetchEntries(): Promise<CacheEntry[]> {
+  const response = await fetch(`${API_BASE}/entries`);
+  if (!response.ok) throw new Error('Failed to fetch entries');
+  return response.json();
+}
+
+export async function clearCache(): Promise<Response> {
+  const response = await fetch(`${API_BASE}/clear`, { method: 'POST' });
+  if (!response.ok) throw new Error('Failed to clear cache');
+  return response;
 }
 
 interface EventStreamCallbacks {
@@ -32,7 +48,6 @@ function connect(callbacks: EventStreamCallbacks) {
   socket = new WebSocket(wsUrl);
 
   socket.onopen = callbacks.onOpen ?? null;
-  // DÜZELTME: Eğer callbacks.onClose tanımsız ise, null ata.
   socket.onclose = callbacks.onClose ?? null;
   
   socket.onmessage = (event) => {
@@ -51,13 +66,12 @@ function connect(callbacks: EventStreamCallbacks) {
 }
 
 export function subscribeToEvents(callbacks: EventStreamCallbacks) {
-  // Yeniden bağlanma mantığını basitleştiriyoruz.
   const reconnectingCallbacks = {
     ...callbacks,
     onClose: () => {
       callbacks.onClose?.();
-      socket = null; // Soketi temizle
-      setTimeout(() => connect(reconnectingCallbacks), 3000); // 3 saniye sonra aynı callback'lerle tekrar bağlan
+      socket = null;
+      setTimeout(() => connect(reconnectingCallbacks), 3000);
     }
   };
 

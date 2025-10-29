@@ -66,3 +66,10 @@ impl Default for Dns {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheEntryInfo {
+    pub key: String,
+    pub size_bytes: u64,
+}

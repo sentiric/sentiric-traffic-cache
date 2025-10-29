@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use sentiric_core::Stats;
+use sentiric_core::{Stats, CacheEntryInfo};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -68,7 +68,14 @@ impl CacheManager {
         let (tx, body_for_client) = Body::channel();
         let path = self.key_to_path(&key);
         let stats_clone = self.stats.clone();
+
+        // Önbellek anahtarı olarak URL'yi saklamak için meta dosyası oluştur
+        let meta_path = path.with_extension("meta");
+
         tokio::spawn(async move {
+            if let Err(e) = fs::write(meta_path, key.clone()).await {
+                 warn!("Failed to write meta file for cache key {}: {}", key, e);
+            }
             if let Err(e) =
                 Self::stream_to_disk_and_client(body_stream, tx, path, key, stats_clone).await
             {
@@ -96,6 +103,44 @@ impl CacheManager {
         stats.disk_items.fetch_add(1, Ordering::Relaxed);
         stats.total_disk_size_bytes.fetch_add(total_bytes, Ordering::Relaxed);
         info!("CACHE PUT: {} ({} bytes)", key, total_bytes);
+        Ok(())
+    }
+
+    pub async fn list_entries(&self) -> Result<Vec<CacheEntryInfo>> {
+        let mut entries = Vec::new();
+        let mut read_dir = fs::read_dir(&self.disk_path).await?;
+        while let Some(entry) = read_dir.next_entry().await? {
+            let path = entry.path();
+            if path.extension().is_some() && path.extension().unwrap() == "meta" {
+                continue; // Meta dosyalarını atla
+            }
+            if path.is_file() {
+                let metadata = entry.metadata().await?;
+                let meta_path = path.with_extension("meta");
+                let key = match fs::read_to_string(meta_path).await {
+                    Ok(url) => url,
+                    Err(_) => path.file_name().unwrap().to_string_lossy().to_string(),
+                };
+
+                entries.push(CacheEntryInfo {
+                    key,
+                    size_bytes: metadata.len(),
+                });
+            }
+        }
+        Ok(entries)
+    }
+
+    pub async fn clear_cache(&self) -> Result<()> {
+        let mut read_dir = fs::read_dir(&self.disk_path).await?;
+        while let Some(entry) = read_dir.next_entry().await? {
+            if entry.file_type().await?.is_file() {
+                fs::remove_file(entry.path()).await?;
+            }
+        }
+        self.stats.disk_items.store(0, Ordering::Relaxed);
+        self.stats.total_disk_size_bytes.store(0, Ordering::Relaxed);
+        info!("Cache cleared successfully.");
         Ok(())
     }
 }

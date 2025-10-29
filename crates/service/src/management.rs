@@ -8,7 +8,7 @@ use tokio::sync::broadcast::{self, Sender};
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
 use serde::Serialize;
-use tracing::info;
+use tracing::{info, warn};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -21,24 +21,32 @@ lazy_static::lazy_static! {
     pub static ref EVENT_BROADCASTER: Sender<WsEvent> = broadcast::channel(128).0;
 }
 
-/// Starts the management web server.
 pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()> {
     info!("🚀 Management server listening on http://{}", addr);
 
     let cache_filter = warp::any().map(move || cache.clone());
 
     let stats_route = warp::path!("api" / "stats")
+        .and(warp::get())
         .and(cache_filter.clone())
         .and_then(handle_stats);
+
+    let entries_route = warp::path!("api" / "entries")
+        .and(warp::get())
+        .and(cache_filter.clone())
+        .and_then(handle_list_entries);
+
+    let clear_route = warp::path!("api" / "clear")
+        .and(warp::post())
+        .and(cache_filter.clone())
+        .and_then(handle_clear_cache);
 
     let events_route = warp::path!("api" / "events")
         .and(warp::ws())
         .map(|ws: warp::ws::Ws| ws.on_upgrade(handle_websocket_connection));
     
-    let api_routes = stats_route.or(events_route);
+    let api_routes = stats_route.or(entries_route).or(clear_route).or(events_route);
 
-    // DÜZELTME: Statik dosyaları 'web/dist' klasöründen sun.
-    // SPA yönlendirmesi için, bulunamayan her yolu index.html'e yönlendir.
     let static_files = warp::fs::dir("web/dist")
         .or(warp::fs::file("web/dist/index.html"));
 
@@ -49,11 +57,31 @@ pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()
     Ok(())
 }
 
-// ... (diğer fonksiyonlar aynı)
 async fn handle_stats(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
     let stats = cache.get_stats().await;
     Ok(warp::reply::json(&stats))
 }
+
+async fn handle_list_entries(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
+    match cache.list_entries().await {
+        Ok(entries) => Ok(warp::reply::json(&entries)),
+        Err(e) => {
+            warn!("Failed to list cache entries: {}", e);
+            Err(warp::reject::custom(e))
+        }
+    }
+}
+
+async fn handle_clear_cache(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
+    match cache.clear_cache().await {
+        Ok(_) => Ok(warp::reply::with_status("Cache cleared", http::StatusCode::OK)),
+        Err(e) => {
+            warn!("Failed to clear cache: {}", e);
+            Err(warp::reject::custom(e))
+        }
+    }
+}
+
 async fn handle_websocket_connection(websocket: WebSocket) {
     info!("New WebSocket client connected");
     let (mut client_tx, _) = websocket.split();
