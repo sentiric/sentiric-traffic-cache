@@ -6,7 +6,7 @@
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
 use std::process::Command;
 use std::env;
-use network_interface::{NetworkInterface, NetworkInterfaceConfig}; // <-- YENİ IMPORT
+use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
 const PROXY_SERVER: &str = "127.0.0.1:3128";
 
@@ -19,18 +19,20 @@ struct NetworkInfo {
 fn get_network_info() -> Result<NetworkInfo, String> {
     let interfaces = NetworkInterface::show().map_err(|e| format!("Ağ arayüzleri alınamadı: {}", e))?;
     
-    for iface in interfaces {
-        for addr in iface.addr {
-            // Sadece IPv4 adreslerini al, loopback (127.0.0.1) adresini atla
-            if addr.ip().is_ipv4() && !addr.ip().is_loopback() {
-                return Ok(NetworkInfo {
-                    ip_address: addr.ip().to_string(),
-                });
-            }
-        }
-    }
+    // --- CLIPPY DÜZELTMESİ: `for` döngüsü yerine `find_map` kullanıyoruz ---
+    let found_ip = interfaces.into_iter().find_map(|iface| {
+        iface.addr.into_iter().find(|addr| {
+            addr.ip().is_ipv4() && !addr.ip().is_loopback()
+        })
+    });
 
-    Err("Uygun bir yerel ağ IP adresi bulunamadı.".to_string())
+    if let Some(addr) = found_ip {
+        Ok(NetworkInfo {
+            ip_address: addr.ip().to_string(),
+        })
+    } else {
+        Err("Uygun bir yerel ağ IP adresi bulunamadı.".to_string())
+    }
 }
 
 #[tauri::command]
