@@ -2,14 +2,25 @@
 FROM rust:latest AS builder
 WORKDIR /app
 
-# Frontend Derleme
+# --- Frontend Derleme ---
+# Önce sadece bağımlılık dosyalarını kopyala
+COPY web/package.json web/package-lock.json* ./web/
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
-COPY web ./web
-RUN cd web && npm install && npm run build
+    apt-get install -y nodejs && \
+    cd web && npm ci
 
-# Backend Derleme
+# Sonra frontend kaynak kodunu kopyala ve derle
+COPY web ./web
+RUN cd web && npm run build
+
+# --- Backend Derleme ---
+# Önce sadece bağımlılık dosyalarını kopyala
 COPY Cargo.toml Cargo.lock* ./
+# Boş bir lib.rs dosyası ile sahte bir proje oluşturarak sadece bağımlılıkları derle
+RUN mkdir -p crates/cli/src && echo "fn main() {}" > crates/cli/src/main.rs
+RUN cargo build -p sentiric-cli --release
+
+# Sonra backend kaynak kodunu kopyala ve tam derlemeyi yap
 COPY crates crates
 RUN cargo build -p sentiric-cli --release
 

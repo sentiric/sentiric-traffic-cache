@@ -15,6 +15,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('**/ci.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Install Tauri system dependencies (for Linux)
         run: |
           sudo apt-get update
@@ -33,12 +41,9 @@ jobs:
 
       - name: Create symlinks for webkit version compatibility
         run: |
-          # Önce .pc dosyalarını pkgconfig dizinine linkle
           cd /usr/lib/x86_64-linux-gnu/pkgconfig
           sudo ln -s webkit2gtk-4.1.pc webkit2gtk-4.0.pc
           sudo ln -s javascriptcoregtk-4.1.pc javascriptcoregtk-4.0.pc
-
-          # Sonra .so dosyalarını ana kütüphane dizinine linkle
           cd /usr/lib/x86_64-linux-gnu/
           sudo ln -s libwebkit2gtk-4.1.so libwebkit2gtk-4.0.so
           sudo ln -s libjavascriptcoregtk-4.1.so libjavascriptcoregtk-4.0.so
@@ -47,12 +52,23 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Run linter (clippy)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Run unit tests
         run: cargo test --workspace
 
-  # ... (frontend_build ve integration_test adımları aynı kalacak)
   frontend_build:
     name: Frontend Build & Lint
     runs-on: ubuntu-latest
@@ -63,6 +79,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+            
       - name: Install dependencies and build
         working-directory: ./web
         run: |
