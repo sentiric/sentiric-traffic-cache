@@ -1,14 +1,9 @@
-//! The Core Crate
-//!
-//! This crate contains the shared business logic, data structures, and traits
-//! for the `sentiric-traffic-cache`.
-
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize}; // <-- Serialize eklendi
 use std::net::IpAddr;
 
-// --- YENİ KURAL YAPILARI ---
+// --- GÜNCELLENMİŞ KURAL YAPILARI ---
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)] // <-- Serialize eklendi
 #[serde(rename_all = "kebab-case")]
 pub enum Action {
     Allow,
@@ -16,18 +11,32 @@ pub enum Action {
     BypassCache,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)] // <-- Serialize eklendi
 #[serde(rename_all = "kebab-case")]
 pub enum RuleCondition {
     Domain(String),
     UrlPattern(String),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)] // <-- Serialize eklendi
 pub struct Rule {
     pub name: String,
     pub condition: RuleCondition,
     pub action: Action,
+}
+
+
+// --- DOSYANIN GERİ KALANI DEĞİŞMEDİ ---
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Stats {
+    pub hits: u64,
+    pub misses: u64,
+    pub total_requests: u64,
+    pub disk_items: u64,
+    pub total_disk_size_bytes: u64,
+    pub bytes_saved: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -38,19 +47,8 @@ pub struct Settings {
     pub management: Management,
     #[serde(default)] 
     pub dns: Dns,
-    #[serde(default)] // Kurallar opsiyonel olsun
+    #[serde(default)]
     pub rules: Vec<Rule>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct Stats {
-    pub hits: u64,
-    pub misses: u64,
-    pub total_requests: u64,
-    pub disk_items: u64,
-    pub total_disk_size_bytes: u64,
-    pub bytes_saved: u64, // <-- YENİ
 }
 
 #[derive(Debug, Deserialize, Clone)]
