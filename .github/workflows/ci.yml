@@ -15,17 +15,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # DÜZELTME: Tauri Action'ı kullanarak tüm kurulumu otomatize ediyoruz.
-      - name: Install dependencies (Rust, Node, Tauri prerequisites)
+      - name: Install Tauri system dependencies (for Linux)
         uses: tauri-apps/tauri-action@v0
         with:
-          # Bu action, Node, Rust ve tüm sistem bağımlılıklarını kuracak.
-          # Bizim manuel `apt-get` veya `symlink` yapmamıza gerek kalmayacak.
-          projectPath: ./crates/companion 
+          # DÜZELTME: 'tauri-action'a sadece bağımlılıkları kurmasını,
+          # 'tauri build' komutunu çalıştırmamasını söylüyoruz.
+          install-mode: "apt-get"
 
-      # Not: 'tauri-action' Rust'ı zaten kurduğu için,
-      # 'dtolnay/rust-toolchain' adımına artık ihtiyacımız yok.
-
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - name: Run linter (clippy)
         run: cargo clippy --workspace --all-targets -- -D warnings
         
