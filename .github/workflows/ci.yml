@@ -16,11 +16,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build, Lint, and Test inside Docker
-        # DÜZELTME: 'docker build' komutunu tek, doğru ve tam bir satır haline getiriyoruz.
-        run: |
-          docker build --target builder --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from=type=gha,scope=${{ github.workflow }} --cache-to=type=gha,scope=${{ github.workflow }},mode=max -t sentiric-builder .
-          
-          docker run --rm sentiric-builder cargo clippy --workspace --all-targets -- -D warnings
+        # DÜZELTME: Tüm komutları '&&' ile tek bir satırda birleştirerek
+        # YAML yorumlama hatalarını ortadan kaldırıyoruz.
+        run: >
+          docker build --target builder -t sentiric-builder . &&
+          docker run --rm sentiric-builder cargo clippy --workspace --all-targets -- -D warnings &&
           docker run --rm sentiric-builder cargo test --workspace
 
   frontend_build:
