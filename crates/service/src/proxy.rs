@@ -1,27 +1,25 @@
 use crate::certs::CertificateAuthority;
 use crate::cache::CacheManager;
 use crate::downloader;
-use crate::management::{EVENT_BROADCASTER, WsEvent}; // <-- Eklendi
+use crate::management::{EVENT_BROADCASTER, WsEvent};
+use crate::rules::RuleEngine;
 use anyhow::{Context, Result};
 use hyper::server::conn::Http;
 use hyper::service::service_fn;
 use hyper::{upgrade, Body, Method, Request, Response};
+use sentiric_core::{Action, FlowEntry};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tracing::{error, info, instrument, warn, Instrument};
-use uuid::Uuid; // <-- Eklendi
-
-use crate::rules::RuleEngine; // <-- YENİ
-use sentiric_core::{FlowEntry, Action}; // <-- Action eklendi
+use uuid::Uuid;
 
 pub async fn run_server(
     addr: SocketAddr,
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<()> {
-    // ... fonksiyonun başı aynı ...
     let listener = TcpListener::bind(addr).await?;
     info!("🚀 Proxy server listening on http://{}", addr);
     loop {
@@ -58,7 +56,6 @@ async fn proxy_service(
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
-    // ... CONNECT kısmı aynı ...
     if Method::CONNECT == req.method() {
         if let Some(host) = req.uri().authority().map(|auth| auth.to_string()) {
             let cache_clone = cache.clone();
@@ -88,10 +85,9 @@ async fn proxy_service(
 
 #[instrument(skip(req, cache), fields(uri = %req.uri()))]
 async fn serve_http(
-    req: Request<Body>,
+    mut req: Request<Body>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
-    // --- YENİ KURAL MOTORU KONTROLÜ ---
     let rule_engine = RuleEngine::new(crate::config::get().rules.clone());
 
     let host = req.headers().get(hyper::header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
@@ -100,7 +96,12 @@ async fn serve_http(
     } else {
         req.uri().to_string()
     };
-
+    
+    // URI'yi klonlayıp, isteğin URI'sini yeni oluşturulan string ile değiştiriyoruz.
+    // Bu, bypass durumunda forward_request'in doğru URI'yi kullanmasını sağlar.
+    let original_uri = req.uri().clone();
+    *req.uri_mut() = uri_string.parse().unwrap_or(original_uri);
+    
     match rule_engine.match_action(&uri_string) {
         Action::Block => {
             info!("Request blocked by rule engine: {}", uri_string);
@@ -110,19 +111,25 @@ async fn serve_http(
         }
         Action::BypassCache => {
             info!("Request bypassing cache by rule engine: {}", uri_string);
-            return downloader::forward_request(req).await.map_err(|e| {
-                error!("Failed to forward request (bypassed): {}", e);
-                hyper::Error::from(e)
-            });
+            // --- HATA DÜZELTMESİ ---
+            return match downloader::forward_request(req).await {
+                Ok(response) => Ok(response),
+                Err(e) => {
+                    error!("Failed to forward request (bypassed): {}", e);
+                    // `anyhow::Error`'u logla, ama `hyper::Error` döndür.
+                    let mut resp = Response::new(Body::from("Upstream request failed"));
+                    *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
+                    Ok(resp)
+                }
+            };
         }
         Action::Allow => {
             // Devam et...
         }
-    }    
-    
-    info!(target_uri = %uri_string, "Handling HTTP request");
+    }
 
-    // --- AKIŞ YAKALAMA BAŞLANGICI ---
+    info!(target_uri = %uri_string, "Handling HTTP request");
+    
     let mut flow = FlowEntry {
         id: Uuid::new_v4().to_string(),
         method: req.method().to_string(),
@@ -136,9 +143,7 @@ async fn serve_http(
 
     if let Some(cached_body) = cache.get(&cache_key).await {
         flow.is_hit = true;
-        // Gerçek boyut `bytes_saved` içinde hesaplandığı için burada tekrar hesaplamaya gerek yok,
-        // ama arayüzde göstermek için `content-length` başlığına bakılabilir. Şimdilik 0 bırakıyoruz.
-        flow.status_code = 200; // Varsayım, genellikle 200 OK olur
+        flow.status_code = 200;
         let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(flow));
         return Ok(Response::new(cached_body));
     }
@@ -155,7 +160,6 @@ async fn serve_http(
 
     match downloader::forward_request(new_req).await {
         Ok(mut response) => {
-            // --- AKIŞ GÜNCELLEME ---
             flow.status_code = response.status().as_u16();
             if let Some(content_length) = response.headers().get(hyper::header::CONTENT_LENGTH) {
                 flow.response_size_bytes = content_length.to_str().unwrap_or("0").parse().unwrap_or(0);
@@ -182,7 +186,6 @@ async fn serve_http(
     }
 }
 
-
 #[instrument(skip_all, fields(host = %host))]
 async fn serve_https(
     upgraded: upgrade::Upgraded,
@@ -190,7 +193,6 @@ async fn serve_https(
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<()> {
-    // ... fonksiyon aynı ...
     info!("Handling CONNECT request, performing TLS handshake");
     let server_config = ca
         .get_server_config(host.split(':').next().unwrap_or(&host))
