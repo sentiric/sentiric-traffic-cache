@@ -4,7 +4,7 @@ export interface CacheStats {
   totalRequests: number;
   diskItems: number;
   totalDiskSizeBytes: number;
-  bytesSaved: number; // <-- YENİ
+  bytesSaved: number;
 }
 
 export interface CacheEntry {
@@ -12,24 +12,38 @@ export interface CacheEntry {
   sizeBytes: number;
 }
 
+// YENİ FlowEntry tipi
+export interface FlowEntry {
+  id: string;
+  method: string;
+  uri: string;
+  statusCode: number;
+  responseSizeBytes: number;
+  isHit: boolean;
+}
+
 export type WsEvent =
-  | { type: 'statsUpdated'; stats: CacheStats };
+  | { type: 'statsUpdated'; stats: CacheStats }
+  | { type: 'flowUpdated'; flow: FlowEntry }; // YENİ Olay
 
 const API_BASE = '/api';
 
 export async function fetchStats(): Promise<CacheStats> {
+  // ... (fonksiyon aynı)
   const response = await fetch(`${API_BASE}/stats`);
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
 }
 
 export async function fetchEntries(): Promise<CacheEntry[]> {
+  // ... (fonksiyon aynı)
   const response = await fetch(`${API_BASE}/entries`);
   if (!response.ok) throw new Error('Failed to fetch entries');
   return response.json();
 }
 
 export async function clearCache(): Promise<Response> {
+  // ... (fonksiyon aynı)
   const response = await fetch(`${API_BASE}/clear`, { method: 'POST' });
   if (!response.ok) throw new Error('Failed to clear cache');
   return response;
@@ -37,6 +51,7 @@ export async function clearCache(): Promise<Response> {
 
 interface EventStreamCallbacks {
   onStatsUpdated?: (stats: CacheStats) => void;
+  onFlowUpdated?: (flow: FlowEntry) => void; // YENİ callback
   onOpen?: () => void;
   onClose?: () => void;
 }
@@ -56,6 +71,8 @@ function connect(callbacks: EventStreamCallbacks) {
       const parsedEvent = JSON.parse(event.data) as WsEvent;
       if (parsedEvent.type === 'statsUpdated') {
         callbacks.onStatsUpdated?.(parsedEvent.stats);
+      } else if (parsedEvent.type === 'flowUpdated') { // YENİ Olayı işle
+        callbacks.onFlowUpdated?.(parsedEvent.flow);
       }
     } catch (e) { console.error("Failed to parse event:", e); }
   };
@@ -67,6 +84,7 @@ function connect(callbacks: EventStreamCallbacks) {
 }
 
 export function subscribeToEvents(callbacks: EventStreamCallbacks) {
+  // ... (fonksiyon aynı)
   const reconnectingCallbacks = {
     ...callbacks,
     onClose: () => {

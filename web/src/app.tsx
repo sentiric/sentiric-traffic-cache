@@ -3,13 +3,15 @@ import { useState } from 'preact/hooks';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
-import { ConnectDevice } from './pages/ConnectDevice'; // YENİ
+import { ConnectDevice } from './pages/ConnectDevice';
+import { NetworkFlow } from './pages/NetworkFlow'; // YENİ
 
-type Page = 'dashboard' | 'settings' | 'connect_device'; // YENİ
+type Page = 'dashboard' | 'settings' | 'connect_device' | 'network_flow'; // YENİ
 const pageComponents: Record<Page, () => ComponentChild> = {
   dashboard: Dashboard,
+  network_flow: NetworkFlow, // YENİ
+  connect_device: ConnectDevice,
   settings: Settings,
-  connect_device: ConnectDevice, // YENİ
 };
 
 export function App() {
