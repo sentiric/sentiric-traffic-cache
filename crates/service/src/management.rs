@@ -2,7 +2,7 @@ use crate::cache::CacheManager;
 use anyhow::Result;
 use futures_util::{StreamExt, SinkExt};
 use sentiric_core::Stats;
-// use std::net::SocketAddr; // <--- KALDIRILDI
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use warp::ws::{Message, WebSocket};
@@ -21,7 +21,10 @@ lazy_static::lazy_static! {
     pub static ref EVENT_BROADCASTER: Sender<WsEvent> = broadcast::channel(128).0;
 }
 
-pub fn api_routes(cache: Arc<CacheManager>) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+/// Starts the management web server.
+pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()> {
+    info!("🚀 Management server listening on http://{}", addr);
+
     let cache_filter = warp::any().map(move || cache.clone());
 
     let stats_route = warp::path!("api" / "stats")
@@ -32,14 +35,25 @@ pub fn api_routes(cache: Arc<CacheManager>) -> impl Filter<Extract = (impl warp:
         .and(warp::ws())
         .map(|ws: warp::ws::Ws| ws.on_upgrade(handle_websocket_connection));
     
-    stats_route.or(events_route)
+    let api_routes = stats_route.or(events_route);
+
+    // DÜZELTME: Statik dosyaları 'web/dist' klasöründen sun.
+    // SPA yönlendirmesi için, bulunamayan her yolu index.html'e yönlendir.
+    let static_files = warp::fs::dir("web/dist")
+        .or(warp::fs::file("web/dist/index.html"));
+
+    let routes = api_routes.or(static_files);
+
+    warp::serve(routes).run(addr).await;
+
+    Ok(())
 }
 
+// ... (diğer fonksiyonlar aynı)
 async fn handle_stats(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
     let stats = cache.get_stats().await;
     Ok(warp::reply::json(&stats))
 }
-
 async fn handle_websocket_connection(websocket: WebSocket) {
     info!("New WebSocket client connected");
     let (mut client_tx, _) = websocket.split();
