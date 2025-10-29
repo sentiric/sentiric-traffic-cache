@@ -4,12 +4,14 @@ import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { ConnectDevice } from './pages/ConnectDevice';
-import { NetworkFlow } from './pages/NetworkFlow'; // YENİ
+import { NetworkFlow } from './pages/NetworkFlow';
+import { Rules } from './pages/Rules'; // YENİ
 
-type Page = 'dashboard' | 'settings' | 'connect_device' | 'network_flow'; // YENİ
+type Page = 'dashboard' | 'network_flow' | 'rules' | 'connect_device' | 'settings'; // YENİ
 const pageComponents: Record<Page, () => ComponentChild> = {
   dashboard: Dashboard,
-  network_flow: NetworkFlow, // YENİ
+  network_flow: NetworkFlow,
+  rules: Rules, // YENİ
   connect_device: ConnectDevice,
   settings: Settings,
 };

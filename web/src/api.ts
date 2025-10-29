@@ -22,6 +22,16 @@ export interface FlowEntry {
   isHit: boolean;
 }
 
+// YENİ KURAL TİPLERİ
+export type Action = 'Allow' | 'Block' | 'BypassCache';
+export type RuleCondition = { domain: string } | { urlPattern: string };
+
+export interface Rule {
+  name: string;
+  condition: RuleCondition;
+  action: Action;
+}
+
 export type WsEvent =
   | { type: 'statsUpdated'; stats: CacheStats }
   | { type: 'flowUpdated'; flow: FlowEntry }; // YENİ Olay
@@ -97,4 +107,10 @@ export function subscribeToEvents(callbacks: EventStreamCallbacks) {
   if (!socket) {
     connect(reconnectingCallbacks);
   }
+}
+
+export async function fetchRules(): Promise<Rule[]> {
+  const response = await fetch(`${API_BASE}/rules`);
+  if (!response.ok) throw new Error('Failed to fetch rules');
+  return response.json();
 }

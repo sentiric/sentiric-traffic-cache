@@ -1,6 +1,6 @@
 import logo from '../assets/logo.svg';
 
-type Page = 'dashboard' | 'settings' | 'connect_device' | 'network_flow'; // YENİ
+type Page = 'dashboard' | 'network_flow' | 'rules' | 'connect_device' | 'settings'; // YENİ
 
 interface SidebarProps {
   activePage: Page;
@@ -11,7 +11,8 @@ interface SidebarProps {
 export function Sidebar({ activePage, onNavigate, pages }: SidebarProps) {
   const pageLabels: Record<Page, string> = {
     dashboard: 'Gösterge Paneli',
-    network_flow: 'Ağ Akışı', // YENİ
+    network_flow: 'Ağ Akışı',
+    rules: 'Kurallar', // YENİ
     connect_device: 'Cihaz Bağla',
     settings: 'Ayarlar',
   };

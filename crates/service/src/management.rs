@@ -1,7 +1,8 @@
 use crate::cache::CacheManager;
+use crate::config; // <-- YENİ IMPORT
 use anyhow::Result;
 use futures_util::{StreamExt, SinkExt};
-use sentiric_core::{Stats, FlowEntry}; // <-- FlowEntry eklendi
+use sentiric_core::{Stats, FlowEntry, Rule}; // <-- Rule eklendi
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
@@ -15,7 +16,7 @@ use tracing::{info, warn};
 #[serde(tag = "type")]
 pub enum WsEvent {
     StatsUpdated(Stats),
-    FlowUpdated(FlowEntry), // <-- YENİ OLAY
+    FlowUpdated(FlowEntry),
 }
 
 lazy_static::lazy_static! {
@@ -41,14 +42,18 @@ pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()
         .and(warp::post())
         .and(cache_filter.clone())
         .and_then(handle_clear_cache);
+    
+    // --- YENİ RULES ROUTE ---
+    let rules_route = warp::path!("api" / "rules")
+        .and(warp::get())
+        .and_then(handle_list_rules);
 
     let events_route = warp::path!("api" / "events")
         .and(warp::ws())
         .map(|ws: warp::ws::Ws| ws.on_upgrade(handle_websocket_connection));
     
-    let api_routes = stats_route.or(entries_route).or(clear_route).or(events_route);
+    let api_routes = stats_route.or(entries_route).or(clear_route).or(rules_route).or(events_route);
 
-    // --- YENİ PAC ROUTE ---
     let pac_route = warp::path!("proxy.pac")
         .and(warp::get())
         .map(handle_pac_file);
@@ -63,17 +68,26 @@ pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()
     Ok(())
 }
 
+// --- YENİ HANDLER ---
+async fn handle_list_rules() -> Result<impl warp::Reply, warp::Rejection> {
+    let rules = &config::get().rules;
+    Ok(warp::reply::json(rules))
+}
+
 fn handle_pac_file() -> impl warp::Reply {
+    // ... (fonksiyon aynı)
     let content = "function FindProxyForURL(url, host) {\n  return 'PROXY 127.0.0.1:3128';\n}";
     warp::reply::with_header(content, "Content-Type", "application/x-ns-proxy-config")
 }
 
 async fn handle_stats(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
+    // ... (fonksiyon aynı)
     let stats = cache.get_stats().await;
     Ok(warp::reply::json(&stats))
 }
 
 async fn handle_list_entries(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
+    // ... (fonksiyon aynı)
     match cache.list_entries().await {
         Ok(entries) => Ok(warp::reply::json(&entries)),
         Err(e) => {
@@ -84,6 +98,7 @@ async fn handle_list_entries(cache: Arc<CacheManager>) -> Result<impl warp::Repl
 }
 
 async fn handle_clear_cache(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
+    // ... (fonksiyon aynı)
     match cache.clear_cache().await {
         Ok(_) => Ok(warp::reply::with_status("Cache cleared", http::StatusCode::OK)),
         Err(e) => {
@@ -94,6 +109,7 @@ async fn handle_clear_cache(cache: Arc<CacheManager>) -> Result<impl warp::Reply
 }
 
 async fn handle_websocket_connection(websocket: WebSocket) {
+    // ... (fonksiyon aynı)
     info!("New WebSocket client connected");
     let (mut client_tx, _) = websocket.split();
     let mut rx = EVENT_BROADCASTER.subscribe();
