@@ -9,7 +9,7 @@ Bu belge, projenin yol haritasını ve tamamlanma durumunu takip eder.
 - [x] Temel CI/CD pipeline'ı (Docker build) kuruldu.
 
 ## Milestone 1: Minimum Değerli Ürün (MVP)
-### Sprint 1: Çekirdek Proxy ve Cache
+### Sprint 1: Çekirek Proxy ve Cache
 - [x] `sentiric-service`: Temel HTTP/S MitM proxy motorunu geliştir.
 - [x] `sentiric-service`: Sertifika üretme (`rcgen`) ve yönetme mantığını ekle.
 - [x] `sentiric-service`: Diske akıtarak yazan (streaming) hibrit cache mekanizmasını geliştir.
@@ -29,10 +29,10 @@ Bu belge, projenin yol haritasını ve tamamlanma durumunu takip eder.
 - [x] `sentiric-companion`: Tek tıkla sistem proxy ayarları için altyapı (Tauri komutları ve UI) eklendi.
 - [x] `sentiric-companion`: Sistem tepsisi menüsünü ekle.
 
-## Milestone 3: Ağ Geneli "Sıfı Yapılandırma"
-- [ ] `sentiric-service`: Akıllı DNS sunucusunu (transparent proxy için) geliştir.
-- [ ] `web`: "Başka Cihaz Bağla" arayüzünü DNS odaklı olarak yeniden tasarla.
-- [ ] `sentiric-service`: Proxy Auto-Config (`/proxy.pac`) endpoint'ini ekle.
+## Milestone 3: Ağ Geneli "Sıfır Yapılandırma"
+- [x] `sentiric-service`: Akıllı DNS sunucusunu (transparent proxy için) geliştir.
+- [x] `web`: "Başka Cihaz Bağla" arayüzünü DNS odaklı olarak yeniden tasarla.
+- [x] `sentiric-service`: Proxy Auto-Config (`/proxy.pac`) endpoint'ini ekle.
 
 ## Milestone 4: Ürünleşme
 - [ ] `packaging`: MSI, DMG ve DEB kurulum paketleri için script'ler oluştur.

@@ -47,14 +47,24 @@ pub async fn run_server(addr: SocketAddr, cache: Arc<CacheManager>) -> Result<()
     
     let api_routes = stats_route.or(entries_route).or(clear_route).or(events_route);
 
+    // --- YENİ PAC ROUTE ---
+    let pac_route = warp::path!("proxy.pac")
+        .and(warp::get())
+        .map(handle_pac_file);
+
     let static_files = warp::fs::dir("web/dist")
         .or(warp::fs::file("web/dist/index.html"));
 
-    let routes = api_routes.or(static_files);
+    let routes = api_routes.or(pac_route).or(static_files);
 
     warp::serve(routes).run(addr).await;
 
     Ok(())
+}
+
+fn handle_pac_file() -> impl warp::Reply {
+    let content = "function FindProxyForURL(url, host) {\n  return 'PROXY 127.0.0.1:3128';\n}";
+    warp::reply::with_header(content, "Content-Type", "application/x-ns-proxy-config")
 }
 
 async fn handle_stats(cache: Arc<CacheManager>) -> Result<impl warp::Reply, warp::Rejection> {
@@ -67,7 +77,6 @@ async fn handle_list_entries(cache: Arc<CacheManager>) -> Result<impl warp::Repl
         Ok(entries) => Ok(warp::reply::json(&entries)),
         Err(e) => {
             warn!("Failed to list cache entries: {}", e);
-            // HATA DÜZELTMESİ: `anyhow::Error` doğrudan `Reject` olmadığı için genel bir rejection döndürüyoruz.
             Err(warp::reject::not_found())
         }
     }
@@ -78,7 +87,6 @@ async fn handle_clear_cache(cache: Arc<CacheManager>) -> Result<impl warp::Reply
         Ok(_) => Ok(warp::reply::with_status("Cache cleared", http::StatusCode::OK)),
         Err(e) => {
             warn!("Failed to clear cache: {}", e);
-            // HATA DÜZELTMESİ: `anyhow::Error` doğrudan `Reject` olmadığı için genel bir rejection döndürüyoruz.
             Err(warp::reject::not_found())
         }
     }
