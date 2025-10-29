@@ -22,7 +22,7 @@ For any device to benefit from it, all it needs to do is "breathe" on the same n
 
 This skeleton is the target structure that will be built from the very first commit.
 
-```
+```tree
 sentiric-traffic-cache/
 ├── .github/                # CI/CD (Test, Lint, Build) workflows
 ├── Cargo.toml              # <-- Main Workspace definition
