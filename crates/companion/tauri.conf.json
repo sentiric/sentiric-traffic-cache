@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "SentiricTrafficCache",
-    "version": "0.1.0"
+    "version": "0.2.1"
   },
   "tauri": {
     "allowlist": {
@@ -28,7 +28,30 @@
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
-      ]
+      ],
+      "category": "Utility",
+      "shortDescription": "An intelligent, universal caching layer.",
+      "longDescription": "Sentiric Traffic Cache is an invisible network assistant designed to speed up development workflows and simplify network management. It acts as a smart proxy, caching network requests to save time and bandwidth.",
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0",
+          "libayatana-appindicator3-1",
+          "libsoup2.4-1"
+        ],
+        "files": {
+          "/usr/share/applications/com.sentiric.traffic-cache.desktop": "assets/com.sentiric.traffic-cache.desktop"
+        }
+      },
+      "macOS": {
+        "frameworks": [],
+        "exceptionDomain": ""
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
     },
     "security": {
       "csp": null

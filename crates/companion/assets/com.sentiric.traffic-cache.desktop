@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Sentiric Traffic Cache
+Comment=An intelligent, universal caching layer.
+Exec=sentiric-traffic-cache
+Icon=com.sentiric.traffic-cache
+Terminal=false
+Type=Application
+Categories=Utility;Network;
