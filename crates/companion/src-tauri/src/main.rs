@@ -5,6 +5,32 @@
 
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
 
+// --- YENİ KOMUTLAR ---
+
+#[tauri::command]
+fn install_ca_certificate() -> Result<(), String> {
+    // TODO: İşletim sistemine özel sertifika yükleme mantığı buraya gelecek.
+    // Örnek: Windows için certutil, macOS için `security` komutu, Linux için `trust` komutu.
+    println!("Sertifika yükleme komutu çağrıldı.");
+    Ok(())
+}
+
+#[tauri::command]
+fn enable_system_proxy() -> Result<(), String> {
+    // TODO: İşletim sistemine özel proxy etkinleştirme mantığı buraya gelecek.
+    // Windows: Registry ayarları, macOS/Linux: `networksetup` / `gsettings`.
+    println!("Sistem proxy'sini etkinleştirme komutu çağrıldı.");
+    Ok(())
+}
+
+#[tauri::command]
+fn disable_system_proxy() -> Result<(), String> {
+    // TODO: İşletim sistemine özel proxy devre dışı bırakma mantığı buraya gelecek.
+    println!("Sistem proxy'sini devre dışı bırakma komutu çağrıldı.");
+    Ok(())
+}
+
+
 fn main() {
     // Arka planda ana servis katmanımızı başlat
     std::thread::spawn(|| {
@@ -39,6 +65,13 @@ fn main() {
                 }
             }
         })
+        // --- YENİ INVOKE HANDLER ---
+        // Frontend'in Rust fonksiyonlarını çağırabilmesi için komutları kaydediyoruz.
+        .invoke_handler(tauri::generate_handler![
+            install_ca_certificate,
+            enable_system_proxy,
+            disable_system_proxy
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

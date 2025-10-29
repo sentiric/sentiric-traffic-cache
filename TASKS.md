@@ -18,18 +18,18 @@ Bu belge, projenin yol haritasını ve tamamlanma durumunu takip eder.
 
 ### Sprint 2: Yönetim Arayüzü ve Gözlemlenebilirlik
 - [x] `sentiric-service`: Yönetim API'si için `Warp` sunucusunu entegre et.
-- [ ] `sentiric-service`: Temel REST endpoint'lerini (`/api/stats`, `/api/entries`) geliştir.
+- [x] `sentiric-service`: Temel REST endpoint'lerini (`/api/stats`, `/api/entries`) geliştir.
 - [x] `sentiric-service`: WebSocket (`/api/events`) yayın mekanizmasını kur.
 - [x] `web`: Mevcut Preact projesini `web/` dizinine taşı ve yeni API'ye bağla.
 - [x] `sentiric-service`: Warp sunucusunun web arayüzünü sunmasını sağla.
 
 ## Milestone 2: Zahmetsiz Deneyim
-- [ ] `sentiric-companion`: Tauri projesini oluştur ve `service`'i entegre et.
-- [ ] `sentiric-companion`: Tek tıkla sertifika kurulumunu (Windows, macOS, Linux) geliştir.
-- [ ] `sentiric-companion`: Tek tıkla sistem proxy ayarlarını (Windows, macOS, Linux) geliştir.
-- [ ] `sentiric-companion`: Sistem tepsisi menüsünü ekle.
+- [x] `sentiric-companion`: Tauri projesini oluştur ve `service`'i entegre et.
+- [x] `sentiric-companion`: Tek tıkla sertifika kurulumu için altyapı (Tauri komutları ve UI) eklendi.
+- [x] `sentiric-companion`: Tek tıkla sistem proxy ayarları için altyapı (Tauri komutları ve UI) eklendi.
+- [x] `sentiric-companion`: Sistem tepsisi menüsünü ekle.
 
-## Milestone 3: Ağ Geneli "Sıfır Yapılandırma"
+## Milestone 3: Ağ Geneli "Sıfı Yapılandırma"
 - [ ] `sentiric-service`: Akıllı DNS sunucusunu (transparent proxy için) geliştir.
 - [ ] `web`: "Başka Cihaz Bağla" arayüzünü DNS odaklı olarak yeniden tasarla.
 - [ ] `sentiric-service`: Proxy Auto-Config (`/proxy.pac`) endpoint'ini ekle.

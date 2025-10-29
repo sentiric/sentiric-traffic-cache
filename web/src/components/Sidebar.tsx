@@ -1,6 +1,6 @@
 import logo from '../assets/logo.svg';
 
-type Page = 'dashboard';
+type Page = 'dashboard' | 'settings'; // YENİ
 
 interface SidebarProps {
   activePage: Page;
@@ -11,6 +11,7 @@ interface SidebarProps {
 export function Sidebar({ activePage, onNavigate, pages }: SidebarProps) {
   const pageLabels: Record<Page, string> = {
     dashboard: 'Gösterge Paneli',
+    settings: 'Ayarlar', // YENİ
   };
 
   return (

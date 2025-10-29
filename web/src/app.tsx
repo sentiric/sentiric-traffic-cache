@@ -2,11 +2,12 @@ import { ComponentChild } from 'preact';
 import { useState } from 'preact/hooks';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
+import { Settings } from './pages/Settings'; // YENİ
 
-// Şimdilik sadece Dashboard var.
-type Page = 'dashboard';
+type Page = 'dashboard' | 'settings'; // YENİ
 const pageComponents: Record<Page, () => ComponentChild> = {
   dashboard: Dashboard,
+  settings: Settings, // YENİ
 };
 
 export function App() {
