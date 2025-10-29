@@ -33,8 +33,6 @@ jobs:
         working-directory: ./web
         run: npm run build
 
-      # --- NİHAİ DÜZELTME ---
-      # ci.yml'deki tüm Linux kurulum adımlarını buraya taşıyoruz.
       - name: Install Linux dependencies and create symlinks
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -51,8 +49,6 @@ jobs:
             librsvg2-dev \
             libsoup2.4-dev \
             libjavascriptcoregtk-4.1-dev
-          
-          # Sembolik linkleri oluşturarak pkg-config'in kütüphaneleri bulmasını sağla
           cd /usr/lib/x86_64-linux-gnu/pkgconfig
           sudo ln -s webkit2gtk-4.1.pc webkit2gtk-4.0.pc
           sudo ln -s javascriptcoregtk-4.1.pc javascriptcoregtk-4.0.pc
@@ -70,16 +66,9 @@ jobs:
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-build-${{ matrix.platform }}
-          # --- NİHAİ DÜZELTME ---
-          # Her platform sadece kendi oluşturduğu dosyayı yüklesin
-          path: |
-            crates/companion/src-tauri/target/release/bundle/msi/*.msi
-            crates/companion/src-tauri/target/release/bundle/msi/*.zip
-            crates/companion/src-tauri/target/release/bundle/dmg/*.dmg
-            crates/companion/src-tauri/target/release/bundle/deb/*.deb
-            crates/companion/src-tauri/target/release/bundle/appimage/*.AppImage
-            
+          # NİHAİ DÜZELTME: Daha basit bir yol kullanıyoruz.
+          path: crates/companion/src-tauri/target/release/bundle/
+          
   publish-release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
@@ -92,9 +81,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: true
           
+      - name: Debug list files
+        run: ls -R artifacts
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
+          # NİHAİ DÜZELTME: Tüm alt dizinlerdeki dosyaları bul
+          files: artifacts/**/*
