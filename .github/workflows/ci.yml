@@ -31,6 +31,13 @@ jobs:
             libsoup2.4-dev \
             libjavascriptcoregtk-4.1-dev
 
+      # DÜZELTME: Kütüphane versiyon uyumsuzluğunu çözmek için sembolik linkler oluşturuyoruz.
+      - name: Create symlinks for webkit version compatibility
+        run: |
+          sudo ln -s /usr/include/webkitgtk-4.1/webkit2/ /usr/include/webkit2gtk-4.0
+          sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
+          sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
