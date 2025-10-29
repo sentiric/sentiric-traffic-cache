@@ -20,7 +20,7 @@
     },
     "bundle": {
       "active": true,
-      "targets": "all",
+      "targets": ["deb", "appimage", "msi", "dmg"],
       "identifier": "com.sentiric.traffic-cache",
       "icon": [
         "src-tauri/icons/32x32.png",
