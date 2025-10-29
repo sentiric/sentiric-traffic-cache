@@ -4,10 +4,10 @@
 )]
 
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
-use std::process::Command; // Stdio kaldırıldı
+use std::process::Command;
 use std::env;
 
-// --- GÜNCELLENMİŞ KOMUT ---
+const PROXY_SERVER: &str = "127.0.0.1:3128";
 
 #[tauri::command]
 fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
@@ -28,7 +28,7 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
     {
         // Windows: `certutil` kullanarak sertifikayı "Trusted Root Certification Authorities" deposuna ekle.
         let output = Command::new("certutil")
-            .args(["-addstore", "-f", "ROOT", cert_path_str]) // & kaldırıldı (isteğe bağlı, ama clippy önerir)
+            .args(["-addstore", "-f", "ROOT", cert_path_str])
             .output()
             .map_err(|e| format!("certutil komutu çalıştırılamadı: {}", e))?;
         
@@ -41,7 +41,7 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
     {
         // macOS: `security` komutu kullanarak sertifikayı System.keychain'e ekle ve güvenilir yap.
         let output = Command::new("sudo")
-            .args([ // & kaldırıldı (isteğe bağlı, ama clippy önerir)
+            .args([
                 "security",
                 "add-trusted-cert",
                 "-d",
@@ -60,11 +60,10 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         // Linux: Sertifikayı `ca-certificates` dizinine kopyala ve `update-ca-certificates` komutunu çalıştır.
-        // Bu, Debian/Ubuntu tabanlı sistemlerde çalışır. Diğer dağıtımlar farklı yollar kullanabilir.
         let cert_dest = "/usr/local/share/ca-certificates/sentiric-ca.crt";
         
         let copy_output = Command::new("sudo")
-            .args(["cp", cert_path_str, cert_dest]) // & kaldırıldı (CLİPPY HATASININ ÇÖZÜMÜ)
+            .args(["cp", cert_path_str, cert_dest])
             .output()
             .map_err(|e| format!("cp komutu çalıştırılamadı: {}", e))?;
         if !copy_output.status.success() {
@@ -87,21 +86,76 @@ fn install_ca_certificate(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn enable_system_proxy() -> Result<(), String> {
-    // TODO: İşletim sistemine özel proxy etkinleştirme mantığı buraya gelecek.
-    // Windows: Registry ayarları, macOS/Linux: `networksetup` / `gsettings`.
-    println!("Sistem proxy'sini etkinleştirme komutu çağrıldı.");
+    println!("Sistem proxy'si etkinleştiriliyor: {}", PROXY_SERVER);
+
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Internet Settings registry anahtarlarını güncelle.
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f"])
+            .output().map_err(|e| format!("ProxyEnable ayarı yapılamadı: {}", e))?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyServer", "/d", PROXY_SERVER, "/f"])
+            .output().map_err(|e| format!("ProxyServer ayarı yapılamadı: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: Aktif ağ servisini bul ve `networksetup` ile proxy'yi ayarla.
+        // Bu komutlar yönetici izni gerektirmez.
+        let services = ["Wi-Fi", "Ethernet", "Display Ethernet"]; // Yaygın servis adları
+        for service in services.iter() {
+            Command::new("networksetup").args(&["-setwebproxy", service, "127.0.0.1", "3128"]).output().ok();
+            Command::new("networksetup").args(&["-setsecurewebproxy", service, "127.0.0.1", "3128"]).output().ok();
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Linux (GNOME/GTK): `gsettings` kullanarak proxy ayarlarını yap.
+        Command::new("gsettings").args(&["set", "org.gnome.system.proxy", "mode", "'manual'"]).output().map_err(|e| format!("gsettings mode ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.http", "host", "'127.0.0.1'"]).output().map_err(|e| format!("gsettings http host ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.http", "port", "3128"]).output().map_err(|e| format!("gsettings http port ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.https", "host", "'127.0.0.1'"]).output().map_err(|e| format!("gsettings https host ayarlanamadı: {}", e))?;
+        Command::new("gsettings").args(&["set", "org.gnome.system.proxy.https", "port", "3128"]).output().map_err(|e| format!("gsettings https port ayarlanamadı: {}", e))?;
+    }
+    
+    println!("Sistem proxy'si başarıyla etkinleştirildi.");
     Ok(())
 }
 
 #[tauri::command]
 fn disable_system_proxy() -> Result<(), String> {
-    // TODO: İşletim sistemine özel proxy devre dışı bırakma mantığı buraya gelecek.
-    println!("Sistem proxy'sini devre dışı bırakma komutu çağrıldı.");
+    println!("Sistem proxy'si devre dışı bırakılıyor.");
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"])
+            .output().map_err(|e| format!("Proxy devre dışı bırakılamadı: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let services = ["Wi-Fi", "Ethernet", "Display Ethernet"];
+        for service in services.iter() {
+            Command::new("networksetup").args(&["-setwebproxystate", service, "off"]).output().ok();
+            Command::new("networksetup").args(&["-setsecurewebproxystate", service, "off"]).output().ok();
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("gsettings").args(&["set", "org.gnome.system.proxy", "mode", "'none'"]).output().map_err(|e| format!("gsettings mode sıfırlanamadı: {}", e))?;
+    }
+
+    println!("Sistem proxy'si başarıyla devre dışı bırakıldı.");
     Ok(())
 }
 
 
 fn main() {
+    // ... (main fonksiyonunun geri kalanı aynı)
     // Arka planda ana servis katmanımızı başlat
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
