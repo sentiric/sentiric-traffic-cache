@@ -4,6 +4,7 @@ export interface CacheStats {
   totalRequests: number;
   diskItems: number;
   totalDiskSizeBytes: number;
+  bytesSaved: number; // <-- YENİ
 }
 
 export interface CacheEntry {

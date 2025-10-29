@@ -19,6 +19,7 @@ pub struct CacheStatsInternal {
     pub misses: AtomicU64,
     pub disk_items: AtomicU64,
     pub total_disk_size_bytes: AtomicU64,
+    pub bytes_saved: AtomicU64, // <-- YENİ
 }
 
 impl CacheManager {
@@ -41,6 +42,7 @@ impl CacheManager {
             total_requests: hits + misses,
             disk_items: self.stats.disk_items.load(Ordering::Relaxed),
             total_disk_size_bytes: self.stats.total_disk_size_bytes.load(Ordering::Relaxed),
+            bytes_saved: self.stats.bytes_saved.load(Ordering::Relaxed), // <-- YENİ
         }
     }
 
@@ -55,6 +57,12 @@ impl CacheManager {
         if path.exists() {
             debug!("CACHE HIT (disk): {}", key);
             self.stats.hits.fetch_add(1, Ordering::Relaxed);
+            
+            // Dosya boyutunu al ve bytes_saved'a ekle
+            if let Ok(metadata) = fs::metadata(&path).await {
+                self.stats.bytes_saved.fetch_add(metadata.len(), Ordering::Relaxed);
+            }
+
             let file = fs::File::open(path).await.ok()?;
             let stream = tokio_util::io::ReaderStream::new(file);
             return Some(Body::wrap_stream(stream));
@@ -62,16 +70,14 @@ impl CacheManager {
         debug!("CACHE MISS: {}", key);
         None
     }
-
+    
+    // ... (put_stream ve diğer fonksiyonlar aynı kalıyor)
     #[instrument(skip(self, body_stream))]
     pub async fn put_stream(&self, key: String, body_stream: Body) -> Result<Body> {
         let (tx, body_for_client) = Body::channel();
         let path = self.key_to_path(&key);
         let stats_clone = self.stats.clone();
-
-        // Önbellek anahtarı olarak URL'yi saklamak için meta dosyası oluştur
         let meta_path = path.with_extension("meta");
-
         tokio::spawn(async move {
             if let Err(e) = fs::write(meta_path, key.clone()).await {
                  warn!("Failed to write meta file for cache key {}: {}", key, e);
@@ -111,9 +117,7 @@ impl CacheManager {
         let mut read_dir = fs::read_dir(&self.disk_path).await?;
         while let Some(entry) = read_dir.next_entry().await? {
             let path = entry.path();
-            if path.extension().is_some() && path.extension().unwrap() == "meta" {
-                continue; // Meta dosyalarını atla
-            }
+            if path.extension().is_some() && path.extension().unwrap() == "meta" { continue; }
             if path.is_file() {
                 let metadata = entry.metadata().await?;
                 let meta_path = path.with_extension("meta");
@@ -121,11 +125,7 @@ impl CacheManager {
                     Ok(url) => url,
                     Err(_) => path.file_name().unwrap().to_string_lossy().to_string(),
                 };
-
-                entries.push(CacheEntryInfo {
-                    key,
-                    size_bytes: metadata.len(),
-                });
+                entries.push(CacheEntryInfo { key, size_bytes: metadata.len(), });
             }
         }
         Ok(entries)
@@ -140,6 +140,7 @@ impl CacheManager {
         }
         self.stats.disk_items.store(0, Ordering::Relaxed);
         self.stats.total_disk_size_bytes.store(0, Ordering::Relaxed);
+        self.stats.bytes_saved.store(0, Ordering::Relaxed); // <-- YENİ
         info!("Cache cleared successfully.");
         Ok(())
     }

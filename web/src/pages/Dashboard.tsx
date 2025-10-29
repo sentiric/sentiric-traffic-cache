@@ -43,10 +43,6 @@ async function handleClearCache() {
 }
 
 export function Dashboard() {
-  useEffect(() => {
-    refreshEntries();
-  }, []);
-
   const s = stats.value;
   const hitRate = s.totalRequests > 0 ? ((s.hits / s.totalRequests) * 100).toFixed(1) + '%' : '0.0%';
   
@@ -55,6 +51,7 @@ export function Dashboard() {
       <h1>Gösterge Paneli</h1>
       <div class="stats-grid">
         <StatCard title="Bağlantı" value={isConnected.value ? 'Aktif' : 'Kesildi'} color={isConnected.value ? '#4ade80' : '#f87171'} />
+        <StatCard title="Tasarruf Edilen Veri" value={formatBytes(s.bytesSaved)} color="#34d399" /> {/* <-- YENİ KART */}
         <StatCard title="Hit Oranı" value={hitRate} />
         <StatCard title="Toplam İstek" value={s.totalRequests} />
         <StatCard title="Cache Boyutu" value={formatBytes(s.totalDiskSizeBytes)} />

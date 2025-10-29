@@ -14,6 +14,7 @@ pub struct Stats {
     pub total_requests: u64,
     pub disk_items: u64,
     pub total_disk_size_bytes: u64,
+    pub bytes_saved: u64, // <-- YENİ
 }
 
 #[derive(Debug, Deserialize, Clone)]
