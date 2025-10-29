@@ -20,9 +20,6 @@ pub mod dns;
 pub mod management;
 pub mod proxy;
 
-#[cfg(feature = "web")]
-pub mod web_server;
-
 pub async fn run() -> Result<()> {
     let subscriber = FmtSubscriber::builder().with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?)).with_thread_ids(true).finish();
     tracing::subscriber::set_global_default(subscriber)?;
@@ -40,28 +37,14 @@ pub async fn run() -> Result<()> {
     let proxy_task = tokio::spawn(proxy::run_server(proxy_addr, ca, cache_manager.clone()));
 
     let mgmt_addr: SocketAddr = format!("{}:{}", settings.management.bind_address, settings.management.port).parse()?;
-    let mgmt_cache_clone = cache_manager.clone();
-    let mgmt_task = tokio::spawn(async move {
-        info!("🚀 Management server listening on http://{}", mgmt_addr);
-        let api = management::api_routes(mgmt_cache_clone);
-
-        #[cfg(feature = "web")]
-        {
-            use warp::Filter;
-            let routes = api.or(web_server::static_files());
-            warp::serve(routes).run(mgmt_addr).await;
-        }
-
-        #[cfg(not(feature = "web"))]
-        {
-            warp::serve(api).run(mgmt_addr).await;
-        }
-    });
+    let mgmt_task = tokio::spawn(management::run_server(mgmt_addr, cache_manager.clone()));
 
     let dns_task = if settings.dns.enabled {
         let dns_settings = settings.clone();
         Some(tokio::spawn(async move {
-            dns::run_server(&dns_settings).await
+            if let Err(e) = dns::run_server(&dns_settings).await {
+                error!("DNS server failed: {}", e);
+            }
         }))
     } else {
         info!("DNS server is disabled in config.");
@@ -81,7 +64,6 @@ pub async fn run() -> Result<()> {
         _ = tokio::signal::ctrl_c() => { info!("Shutdown signal received."); }
         res = proxy_task => { if let Err(e) = res? { error!("Proxy server exited: {}", e); } }
         _res = mgmt_task => { error!("Management server exited."); }
-        // DÜZELTME: 'res' in tipi Result<Result<...>> olduğu için iki kat kontrol ediyoruz.
         res = async { if let Some(task) = dns_task { task.await } else { futures_util::future::pending().await } } => {
              match res {
                 Ok(Ok(_)) => info!("DNS server exited cleanly."),
