@@ -3,7 +3,6 @@
     windows_subsystem = "windows"
 )]
 
-// DÜZELTME: Gerekli 'Manager' trait'ini import ediyoruz.
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
 
 fn main() {
@@ -24,21 +23,22 @@ fn main() {
 
     tauri::Builder::default()
         .system_tray(system_tray)
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-                "quit" => {
-                    std::process::exit(0);
-                }
-                "show" => {
-                    // 'get_window' metodu artık 'Manager' trait'i sayesinde bulunacak.
-                    if let Some(window) = app.get_window("main") {
-                        window.show().unwrap();
-                        window.set_focus().unwrap();
+        .on_system_tray_event(|app, event| {
+            // DÜZELTME: 'match' yerine 'if let' kullanarak kodu basitleştiriyoruz.
+            if let SystemTrayEvent::MenuItemClick { id, .. } = event {
+                match id.as_str() {
+                    "quit" => {
+                        std::process::exit(0);
                     }
+                    "show" => {
+                        if let Some(window) = app.get_window("main") {
+                            window.show().unwrap();
+                            window.set_focus().unwrap();
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {}
-            },
-            _ => {}
+            }
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
