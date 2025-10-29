@@ -33,7 +33,7 @@ jobs:
 
       - name: Create symlinks for webkit version compatibility
         run: |
-          cd /usr/lib/xx86_64-linux-gnu/pkgconfig
+          cd /usr/lib/x86_64-linux-gnu/pkgconfig
           sudo ln -s webkit2gtk-4.1.pc webkit2gtk-4.0.pc
           sudo ln -s javascriptcoregtk-4.1.pc javascriptcoregtk-4.0.pc
           cd /usr/lib/x86_64-linux-gnu/
