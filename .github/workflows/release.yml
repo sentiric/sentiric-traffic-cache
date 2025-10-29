@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v[0-9]+.*' # Sadece v0.1.0 gibi geçerli versiyon tag'lerinde tetiklenir
+      - 'v[0-9]+.*'
 
 jobs:
   build-release:
@@ -29,6 +29,11 @@ jobs:
         working-directory: ./web
         run: npm ci
 
+      # --- YENİ ADIM ---
+      - name: Build frontend
+        working-directory: ./web
+        run: npm run build
+
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -43,7 +48,6 @@ jobs:
           projectPath: "crates/companion"
           args: ${{ matrix.platform == 'ubuntu-latest' && '--no-bundle' || '' }}
 
-      # Workaround for https://github.com/tauri-apps/tauri/issues/7543
       - name: Build appimage separately
         if: matrix.platform == 'ubuntu-latest'
         run: |
