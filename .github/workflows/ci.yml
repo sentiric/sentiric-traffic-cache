@@ -8,9 +8,6 @@ on:
   workflow_call:
 
 jobs:
-  ##############################################################
-  # 1. Tam Build ve Test Ortamını Docker İçinde Oluşturma      #
-  ##############################################################
   build_and_test:
     name: Build and All Tests
     runs-on: ubuntu-latest
@@ -18,26 +15,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # DÜZELTME: Bu adımda, Dockerfile'daki 'builder' katmanını kullanarak
-      # hem bağımlılıkları kuruyor, hem de test ve linter'ı çalıştırıyoruz.
       - name: Build, Lint, and Test inside Docker
+        # DÜZELTME: 'docker build' komutunu tek, doğru ve tam bir satır haline getiriyoruz.
         run: |
-          docker build \
-            --target builder \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --cache-from=type=gha,scope=${{ github.workflow }} \
-            --cache-to=type=gha,scope=${{ github.workflow }},mode=max \
-            -t sentiric-builder \
-            .
+          docker build --target builder --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from=type=gha,scope=${{ github.workflow }} --cache-to=type=gha,scope=${{ github.workflow }},mode=max -t sentiric-builder .
           
-          # Şimdi, oluşturduğumuz bu 'builder' imajının içinde testleri çalıştır.
-          # Bu, sistem bağımlılıklarının %100 doğru olmasını garanti eder.
           docker run --rm sentiric-builder cargo clippy --workspace --all-targets -- -D warnings
           docker run --rm sentiric-builder cargo test --workspace
 
-  ##############################################################
-  # 2. Frontend Testi (Ayrı kalabilir, çünkü bağımsız)         #
-  ##############################################################
   frontend_build:
     name: Frontend Build & Lint
     runs-on: ubuntu-latest
@@ -54,9 +39,6 @@ jobs:
           npm ci
           npm run build
 
-  ##############################################################
-  # 3. Entegrasyon Testi (Artık daha hızlı olacak)             #
-  ##############################################################
   integration_test:
     name: Integration Test
     runs-on: ubuntu-latest
