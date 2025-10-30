@@ -6,7 +6,7 @@ use crate::rules::RuleEngine;
 use anyhow::{Context, Result};
 use hyper::server::conn::Http;
 use hyper::service::service_fn;
-use hyper::{upgrade, Body, Method, Request, Response};
+use hyper::{upgrade, Body, Method, Request, Response, Uri};
 use sentiric_core::{Action, FlowEntry};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -79,7 +79,8 @@ async fn proxy_service(
             Ok(resp)
         }
     } else {
-        serve_http(req, cache).await
+        // HTTP istekleri için 'is_https' false olarak gönderilir.
+        serve_http(req, cache, false).await
     }
 }
 
@@ -87,20 +88,24 @@ async fn proxy_service(
 async fn serve_http(
     mut req: Request<Body>,
     cache: Arc<CacheManager>,
+    is_https: bool, // İsteğin HTTPS tünelinden gelip gelmediğini belirtir
 ) -> Result<Response<Body>, hyper::Error> {
     let rule_engine = RuleEngine::new(crate::config::get().rules.clone());
 
-    let host = req.headers().get(hyper::header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
-    let uri_string = if !host.is_empty() && req.uri().authority().is_none() {
+    // URI'yi doğru şekilde oluştur
+    let uri_string = if !is_https {
+        // Normal HTTP isteği
+        let host = req.headers().get(hyper::header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
         format!("http://{}{}", host, req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/"))
     } else {
+        // HTTPS tünelinden gelen istek, URI zaten doğru formatta
         req.uri().to_string()
     };
     
-    let original_uri = req.uri().clone();
-    *req.uri_mut() = uri_string.parse().unwrap_or(original_uri);
+    // URI'yi ayrıştırıp mutlak hale getir
+    let uri: Uri = uri_string.parse().expect("Failed to parse URI");
+    *req.uri_mut() = uri.clone();
     
-    // --- HATA DÜZELTMESİ: BypassCache mantığını yeniden yapılandırıyoruz ---
     let action = rule_engine.match_action(&uri_string);
 
     if action == Action::Block {
@@ -122,7 +127,6 @@ async fn serve_http(
             }
         };
     }
-    // --- DÜZELTME SONU ---
 
     info!(target_uri = %uri_string, "Handling HTTP request");
     
@@ -146,15 +150,7 @@ async fn serve_http(
     
     cache.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-    let mut builder = Request::builder()
-        .method(req.method().clone())
-        .uri(&uri_string) 
-        .version(req.version());
-    *builder.headers_mut().unwrap() = req.headers().clone();
-    
-    let new_req = builder.body(req.into_body()).unwrap();
-
-    match downloader::forward_request(new_req).await {
+    match downloader::forward_request(req).await {
         Ok(mut response) => {
             flow.status_code = response.status().as_u16();
             if let Some(content_length) = response.headers().get(hyper::header::CONTENT_LENGTH) {
@@ -209,7 +205,8 @@ async fn serve_https(
                 .build()
                 .unwrap();
             *req.uri_mut() = uri;
-            serve_http(req, cache_clone).await
+            // HTTPS istekleri için 'is_https' true olarak gönderilir.
+            serve_http(req, cache_clone, true).await
         }
     });
 
