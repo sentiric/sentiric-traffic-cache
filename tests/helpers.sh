@@ -4,6 +4,8 @@ export APP_HOST="app"
 export PROXY_URL="http://${APP_HOST}:3128"
 export MGMT_URL="http://${APP_HOST}:8080"
 export OUTPUT_FILE="/dev/null"
+# YENİ: Paylaşılan sertifikanın yolu
+export CA_CERT_PATH="/app/.certs/ca.crt"
 
 # Fonksiyon: Mesajı başlık formatında yazdır
 function print_header {
@@ -13,7 +15,18 @@ function print_header {
     echo "================================================="
 }
 
-# Fonksiyon: Test başlamadan önce mevcut istatistikleri alır.
+# YENİ: Proxy üzerinden güvenli curl isteği yapan fonksiyon
+function run_proxied_curl {
+    # -s: sessiz mod
+    # -L: yönlendirmeleri takip et
+    # --proxy: proxy sunucusunu kullan
+    # --cacert: Güvenilecek özel kök sertifikayı belirt
+    # "$@": Fonksiyona gelen diğer tüm argümanları (URL gibi) ekle
+    echo "--- RUNNING (proxied): curl $*"
+    curl -s -L --proxy ${PROXY_URL} --cacert ${CA_CERT_PATH} "$@"
+}
+
+
 function capture_initial_stats {
     print_header "Capturing initial stats"
     
