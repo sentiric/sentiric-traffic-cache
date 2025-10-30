@@ -10,20 +10,38 @@ function print_header {
     echo "================================================="
     echo ">> $1"
     echo "================================================="
+    # Komutların loglarda daha net görünmesi için
+    set -x
+}
+
+function run_command {
+    # Komutların loglarda daha net görünmesi için
+    set +x
+    echo "--- RUNNING: $*"
+    set -x
+    "$@"
+    set +x
 }
 
 # Fonksiyon: Test başlamadan önce mevcut istatistikleri alır.
 function capture_initial_stats {
     print_header "Capturing initial stats"
-    # İstatistiklerin oturması için bekle
-    sleep 1
-    # Önce önbelleği temizleyerek başlayalım
-    curl -s -X POST ${MGMT_URL}/api/clear > ${OUTPUT_FILE}
-    sleep 1
     
-    local stats=$(curl -s ${MGMT_URL}/api/stats)
+    # İstatistiklerin oturması için bekle
+    sleep 2
+    
+    # Önce önbelleği temizleyerek başlayalım, ancak sonucunu kontrol etmeyelim.
+    # Bu sadece bir sonraki testin "temiz" bir diskle başlamasını sağlar.
+    run_command curl -s -X POST ${MGMT_URL}/api/clear -o ${OUTPUT_FILE}
+    
+    # API'nin kendini toparlaması ve olası artçı isteklerin bitmesi için bekle
+    sleep 2
+    
+    local stats=$(run_command curl -s ${MGMT_URL}/api/stats)
     INITIAL_HITS=$(echo ${stats} | jq '.hits')
     INITIAL_MISSES=$(echo ${stats} | jq '.misses')
+    
+    set +x
     echo "--- Initial state captured (Hits: ${INITIAL_HITS}, Misses: ${INITIAL_MISSES}) ---"
 }
 
@@ -33,8 +51,9 @@ function assert_stats_increment {
     local expected_misses_increment=$2
     local context=$3
     
-    sleep 1
-    local stats=$(curl -s ${MGMT_URL}/api/stats)
+    # İstatistiklerin güncellenmesi için yeterli zaman ver
+    sleep 2
+    local stats=$(run_command curl -s ${MGMT_URL}/api/stats)
     local actual_hits=$(echo ${stats} | jq '.hits')
     local actual_misses=$(echo ${stats} | jq '.misses')
 
@@ -51,5 +70,6 @@ function assert_stats_increment {
         exit 1
     fi
     
+    set +x
     echo "--- SUCCESS ${context} (Total Hits: ${actual_hits}, Total Misses: ${actual_misses}) ---"
 }
