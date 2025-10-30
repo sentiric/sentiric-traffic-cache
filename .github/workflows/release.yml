@@ -58,7 +58,7 @@ jobs:
     needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false # Diğer işlerin iptal olmasını engelle
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -66,7 +66,6 @@ jobs:
             artifact_name: sentiric-cli
             asset_name: sentiric-cli-linux-amd64.tar.gz
           - os: windows-latest
-            # HATA DÜZELTMESİ: 'x8x64' -> 'x86_64'
             target: x86_64-pc-windows-msvc
             artifact_name: sentiric-cli.exe
             asset_name: sentiric-cli-windows-amd64.zip
@@ -139,10 +138,10 @@ jobs:
         run: npm run build --prefix web
 
       - name: Build Tauri App
-        # HATA DÜZELTMESİ: Linker için kütüphane yolunu ekliyoruz.
+        # HATA DÜZELTMESİ: Derleyiciye linker yolunu bildirmek için RUSTFLAGS kullanıyoruz.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LD_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu
+          RUSTFLAGS: -L /usr/lib/x86_64-linux-gnu
         uses: tauri-apps/tauri-action@v0
         with:
           projectPath: "crates/companion"
