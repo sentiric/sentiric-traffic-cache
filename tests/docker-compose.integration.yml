@@ -10,12 +10,11 @@ services:
       - "53:53/udp"      
     volumes:    
       - ../config.toml:/app/config.toml
-      # YENİ SATIR: Test kurallarını bağlıyoruz.
       - ./rules.test.toml:/app/rules.toml
     networks:
       - testnet
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/stats"]
+      test: ["CMD", "curl", "-f", "http://app:8080/api/stats"]
       interval: 2s
       timeout: 5s
       retries: 15
@@ -28,9 +27,9 @@ services:
     environment:
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
-      # ÖNEMLİ: Kural testleri için test domain'lerini no_proxy'den kaldırıyoruz.
-      - no_proxy=localhost
-    command: /test-runner.sh
+      - no_proxy=app,localhost
+    # Konteyneri 'exec' komutları için ayakta tut
+    command: tail -f /dev/null
     networks:
       - testnet
     depends_on:
