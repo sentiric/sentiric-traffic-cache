@@ -3060,7 +3060,7 @@ dependencies = [
 
 [[package]]
 name = "sentiric-cli"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "sentiric-service",
@@ -3070,7 +3070,7 @@ dependencies = [
 
 [[package]]
 name = "sentiric-companion"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "network-interface",
@@ -3085,7 +3085,7 @@ dependencies = [
 
 [[package]]
 name = "sentiric-core"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "chrono",
  "serde",
@@ -3093,7 +3093,7 @@ dependencies = [
 
 [[package]]
 name = "sentiric-service"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
