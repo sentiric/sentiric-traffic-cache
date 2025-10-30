@@ -79,7 +79,6 @@ async fn proxy_service(
             Ok(resp)
         }
     } else {
-        // HTTP istekleri için 'is_https' false olarak gönderilir.
         serve_http(req, cache, false).await
     }
 }
@@ -88,36 +87,31 @@ async fn proxy_service(
 async fn serve_http(
     mut req: Request<Body>,
     cache: Arc<CacheManager>,
-    is_https: bool, // İsteğin HTTPS tünelinden gelip gelmediğini belirtir
+    is_https: bool,
 ) -> Result<Response<Body>, hyper::Error> {
     let rule_engine = RuleEngine::new(crate::config::get().rules.clone());
 
-    // URI'yi doğru şekilde oluştur
     let uri_string = if !is_https {
-        // Normal HTTP isteği
         let host = req.headers().get(hyper::header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
         format!("http://{}{}", host, req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/"))
     } else {
-        // HTTPS tünelinden gelen istek, URI zaten doğru formatta
         req.uri().to_string()
     };
     
-    // URI'yi ayrıştırıp mutlak hale getir
     let uri: Uri = uri_string.parse().expect("Failed to parse URI");
     *req.uri_mut() = uri.clone();
     
     let action = rule_engine.match_action(&uri_string);
 
+    // --- MANTIK DÜZELTMESİ: if-else if-else yapısı kullanıyoruz ---
     if action == Action::Block {
         info!("Request blocked by rule engine: {}", uri_string);
         let mut resp = Response::new(Body::from("Blocked by Sentiric Traffic Cache rule."));
         *resp.status_mut() = http::StatusCode::FORBIDDEN;
-        return Ok(resp);
-    }
-    
-    if action == Action::BypassCache {
+        Ok(resp)
+    } else if action == Action::BypassCache {
         info!("Request bypassing cache by rule engine: {}", uri_string);
-        return match downloader::forward_request(req).await {
+        match downloader::forward_request(req).await {
             Ok(response) => Ok(response),
             Err(e) => {
                 error!("Failed to forward request (bypassed): {}", e);
@@ -125,57 +119,58 @@ async fn serve_http(
                 *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
                 Ok(resp)
             }
+        }
+    } else { // Action::Allow
+        info!(target_uri = %uri_string, "Handling Allowed request");
+        
+        let mut flow = FlowEntry {
+            id: Uuid::new_v4().to_string(),
+            method: req.method().to_string(),
+            uri: uri_string.clone(),
+            status_code: 0,
+            response_size_bytes: 0,
+            is_hit: false,
         };
-    }
 
-    info!(target_uri = %uri_string, "Handling HTTP request");
-    
-    let mut flow = FlowEntry {
-        id: Uuid::new_v4().to_string(),
-        method: req.method().to_string(),
-        uri: uri_string.clone(),
-        status_code: 0,
-        response_size_bytes: 0,
-        is_hit: false,
-    };
+        let cache_key = uri_string.clone();
 
-    let cache_key = uri_string.clone();
-
-    if let Some(cached_body) = cache.get(&cache_key).await {
-        flow.is_hit = true;
-        flow.status_code = 200;
-        let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(flow));
-        return Ok(Response::new(cached_body));
-    }
-    
-    cache.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
-    match downloader::forward_request(req).await {
-        Ok(mut response) => {
-            flow.status_code = response.status().as_u16();
-            if let Some(content_length) = response.headers().get(hyper::header::CONTENT_LENGTH) {
-                flow.response_size_bytes = content_length.to_str().unwrap_or("0").parse().unwrap_or(0);
-            }
+        if let Some(cached_body) = cache.get(&cache_key).await {
+            flow.is_hit = true;
+            flow.status_code = 200;
             let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(flow));
-
-            let body_stream = std::mem::replace(response.body_mut(), Body::empty());
-            match cache.put_stream(cache_key, body_stream).await {
-                Ok(body_for_client) => {
-                    *response.body_mut() = body_for_client;
-                }
-                Err(e) => {
-                    error!("Failed to initiate cache stream: {}", e);
-                }
-            }
-            Ok(response)
+            return Ok(Response::new(cached_body));
         }
-        Err(e) => {
-            error!("Failed to forward request: {}", e);
-            let mut resp = Response::new(Body::from("Upstream request failed"));
-            *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
-            Ok(resp)
+        
+        cache.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+        match downloader::forward_request(req).await {
+            Ok(mut response) => {
+                flow.status_code = response.status().as_u16();
+                if let Some(content_length) = response.headers().get(hyper::header::CONTENT_LENGTH) {
+                    flow.response_size_bytes = content_length.to_str().unwrap_or("0").parse().unwrap_or(0);
+                }
+                let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(flow));
+
+                let body_stream = std::mem::replace(response.body_mut(), Body::empty());
+                match cache.put_stream(cache_key, body_stream).await {
+                    Ok(body_for_client) => {
+                        *response.body_mut() = body_for_client;
+                    }
+                    Err(e) => {
+                        error!("Failed to initiate cache stream: {}", e);
+                    }
+                }
+                Ok(response)
+            }
+            Err(e) => {
+                error!("Failed to forward request: {}", e);
+                let mut resp = Response::new(Body::from("Upstream request failed"));
+                *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
+                Ok(resp)
+            }
         }
     }
+    // --- DÜZELTME SONU ---
 }
 
 #[instrument(skip_all, fields(host = %host))]
@@ -205,7 +200,6 @@ async fn serve_https(
                 .build()
                 .unwrap();
             *req.uri_mut() = uri;
-            // HTTPS istekleri için 'is_https' true olarak gönderilir.
             serve_http(req, cache_clone, true).await
         }
     });
