@@ -10,7 +10,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /tests
 COPY . .
-RUN chmod +x test-runner.sh helpers.sh scenarios/*.sh
 
-# Ana test koşucusunu çalıştır
-CMD ["/test-runner.sh"]
+# YENİ SATIR: entrypoint'i de kopyala ve izin ver
+RUN chmod +x test-runner.sh helpers.sh scenarios/*.sh entrypoint.sh
+
+# YENİ SATIR: Konteyner başladığında bu script'i çalıştır
+ENTRYPOINT ["/tests/entrypoint.sh"]
+
+# ENTRYPOINT, CMD'yi argüman olarak alır. Bu, 'tail -f /dev/null' komutunun
+# sertifika kurulumundan SONRA çalışmasını sağlar.
+CMD ["tail", "-f", "/dev/null"]

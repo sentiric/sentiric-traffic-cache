@@ -11,6 +11,8 @@ services:
     volumes:    
       - ../config.toml:/app/config.toml
       - ./rules.test.toml:/app/rules.toml
+      # YENİ SATIR: Sertifika klasörünü paylaşmak için bir volume oluştur
+      - sentiric_certs:/app/.certs
     networks:
       - testnet
     healthcheck:
@@ -28,7 +30,9 @@ services:
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
       - no_proxy=app,localhost
-    # Konteyneri 'exec' komutları için ayakta tut
+    # YENİ SATIR: Sertifika klasörünü bu konteynere de bağla
+    volumes:
+      - sentiric_certs:/app/.certs:ro
     command: tail -f /dev/null
     networks:
       - testnet
@@ -38,3 +42,7 @@ services:
 
 networks:
   testnet:
+
+# YENİ BÖLÜM: Paylaşılan volume'ü tanımla
+volumes:
+  sentiric_certs:
