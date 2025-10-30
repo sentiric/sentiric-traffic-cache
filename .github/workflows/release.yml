@@ -58,6 +58,7 @@ jobs:
     needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false # Diğer işlerin iptal olmasını engelle
       matrix:
         include:
           - os: ubuntu-latest
@@ -65,7 +66,8 @@ jobs:
             artifact_name: sentiric-cli
             asset_name: sentiric-cli-linux-amd64.tar.gz
           - os: windows-latest
-            target: x8x64-pc-windows-msvc
+            # HATA DÜZELTMESİ: 'x8x64' -> 'x86_64'
+            target: x86_64-pc-windows-msvc
             artifact_name: sentiric-cli.exe
             asset_name: sentiric-cli-windows-amd64.zip
           - os: macos-latest
@@ -127,7 +129,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-1 librsvg2-dev libsoup2.4-1 libjavascriptcoregtk-4.1-0 libsoup2.4-dev
-          # HATA DÜZELTMESİ: Eksik olan ve uyumluluk için gereken sembolik linkleri geri ekliyoruz.
           cd /usr/lib/x86_64-linux-gnu/pkgconfig
           sudo ln -s webkit2gtk-4.1.pc webkit2gtk-4.0.pc
           sudo ln -s javascriptcoregtk-4.1.pc javascriptcoregtk-4.0.pc
@@ -137,9 +138,12 @@ jobs:
       - name: Build frontend
         run: npm run build --prefix web
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri App
+        # HATA DÜZELTMESİ: Linker için kütüphane yolunu ekliyoruz.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LD_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu
+        uses: tauri-apps/tauri-action@v0
         with:
           projectPath: "crates/companion"
           releaseId: ${{ needs.create-release.outputs.release_id }}
