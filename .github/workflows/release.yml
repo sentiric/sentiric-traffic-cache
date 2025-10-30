@@ -127,8 +127,18 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-1 librsvg2-dev libsoup2.4-1 libjavascriptcoregtk-4.1-0 libsoup2.4-dev
-          # HATA DÜZELTMESİ: Hem pkg-config hem de linker için sembolik linkler oluşturuyoruz.
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup2.4-dev
+          # Linker ve pkg-config için gerekli olan sembolik linkler
           cd /usr/lib/x86_64-linux-gnu
           sudo ln -s libwebkit2gtk-4.1.so libwebkit2gtk-4.0.so
           sudo ln -s libjavascriptcoregtk-4.1.so libjavascriptcoregtk-4.0.so
