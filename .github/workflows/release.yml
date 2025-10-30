@@ -14,15 +14,12 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       release_id: ${{ steps.create_release.outputs.id }}
     steps:
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
-          prerelease: false
           generate_release_notes: true 
 
   # --- 2. Docker İmajı ---
@@ -68,7 +65,7 @@ jobs:
             artifact_name: sentiric-cli
             asset_name: sentiric-cli-linux-amd64.tar.gz
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
+            target: x8x64-pc-windows-msvc
             artifact_name: sentiric-cli.exe
             asset_name: sentiric-cli-windows-amd64.zip
           - os: macos-latest
@@ -79,43 +76,34 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
       - name: Build CLI
         run: cargo build -p sentiric-cli --release --target ${{ matrix.target }}
-
       - name: Prepare Package Directory
         shell: bash
         run: |
           mkdir -p dist
-          # Binary'yi kopyala
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" dist/
           else
             cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" dist/sentiric-cli
           fi
-          # Config dosyalarını kopyala
           cp config.toml dist/
           cp rules.toml dist/
-
       - name: Create Archive (Unix)
         if: matrix.os != 'windows-latest'
         working-directory: dist
         run: tar -czvf ../${{ matrix.asset_name }} *
-
       - name: Create Archive (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: dist
         run: 7z a ../${{ matrix.asset_name }} *
-
       - name: Upload CLI Artifact to Release
         uses: softprops/action-gh-release@v2
         with:
-          release_id: ${{ needs.create-release.outputs.release_id }}
           files: ${{ matrix.asset_name }}
 
   # --- 4. Companion Masaüstü Uygulamaları ---
@@ -139,10 +127,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-1 librsvg2-dev libsoup2.4-1 libjavascriptcoregtk-4.1-0 libsoup2.4-dev
+          # HATA DÜZELTMESİ: Eksik olan ve uyumluluk için gereken sembolik linkleri geri ekliyoruz.
+          cd /usr/lib/x86_64-linux-gnu/pkgconfig
+          sudo ln -s webkit2gtk-4.1.pc webkit2gtk-4.0.pc
+          sudo ln -s javascriptcoregtk-4.1.pc javascriptcoregtk-4.0.pc
 
       - name: Install frontend dependencies
         run: npm ci --prefix web
-      
       - name: Build frontend
         run: npm run build --prefix web
 
@@ -157,7 +148,6 @@ jobs:
       - name: Upload Companion Artifacts
         uses: softprops/action-gh-release@v2
         with:
-          release_id: ${{ needs.create-release.outputs.release_id }}
           files: |
             crates/companion/src-tauri/target/release/bundle/dmg/*.dmg
             crates/companion/src-tauri/target/release/bundle/msi/*.msi
