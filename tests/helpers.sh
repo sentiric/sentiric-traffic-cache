@@ -5,43 +5,42 @@ export PROXY_URL="http://${APP_HOST}:3128"
 export MGMT_URL="http://${APP_HOST}:8080"
 export OUTPUT_FILE="/dev/null"
 
+# Fonksiyon: Mesajı başlık formatında yazdır
 function print_header {
     echo ""
     echo "================================================="
     echo ">> $1"
     echo "================================================="
-    # Komutların loglarda daha net görünmesi için
-    set -x
-}
-
-function run_command {
-    # Komutların loglarda daha net görünmesi için
-    set +x
-    echo "--- RUNNING: $*"
-    set -x
-    "$@"
-    set +x
 }
 
 # Fonksiyon: Test başlamadan önce mevcut istatistikleri alır.
 function capture_initial_stats {
     print_header "Capturing initial stats"
     
-    # İstatistiklerin oturması için bekle
+    # API'nin kararlı hale gelmesi için bekle
     sleep 2
     
-    # Önce önbelleği temizleyerek başlayalım, ancak sonucunu kontrol etmeyelim.
-    # Bu sadece bir sonraki testin "temiz" bir diskle başlamasını sağlar.
-    run_command curl -s -X POST ${MGMT_URL}/api/clear -o ${OUTPUT_FILE}
+    # Önce önbelleği temizle
+    echo "--- RUNNING: curl -s -X POST ${MGMT_URL}/api/clear"
+    curl -s -X POST ${MGMT_URL}/api/clear > ${OUTPUT_FILE}
     
-    # API'nin kendini toparlaması ve olası artçı isteklerin bitmesi için bekle
+    # Temizleme sonrası API'nin toparlanması için bekle
     sleep 2
     
-    local stats=$(run_command curl -s ${MGMT_URL}/api/stats)
+    echo "--- RUNNING: curl -s ${MGMT_URL}/api/stats"
+    local stats=$(curl -s ${MGMT_URL}/api/stats)
+
+    # jq'nun başarısız olmasını engellemek için gelen yanıtın geçerli bir JSON olup olmadığını kontrol et
+    if ! echo "$stats" | jq empty; then
+        echo "--- FAILURE: Failed to get valid JSON stats from API. Response was: ---"
+        echo "$stats"
+        echo "-----------------------------------------------------------------------"
+        exit 1
+    fi
+    
     INITIAL_HITS=$(echo ${stats} | jq '.hits')
     INITIAL_MISSES=$(echo ${stats} | jq '.misses')
     
-    set +x
     echo "--- Initial state captured (Hits: ${INITIAL_HITS}, Misses: ${INITIAL_MISSES}) ---"
 }
 
@@ -51,9 +50,17 @@ function assert_stats_increment {
     local expected_misses_increment=$2
     local context=$3
     
-    # İstatistiklerin güncellenmesi için yeterli zaman ver
     sleep 2
-    local stats=$(run_command curl -s ${MGMT_URL}/api/stats)
+    echo "--- RUNNING: curl -s ${MGMT_URL}/api/stats (for assertion: ${context})"
+    local stats=$(curl -s ${MGMT_URL}/api/stats)
+
+    if ! echo "$stats" | jq empty; then
+        echo "--- FAILURE ${context}: Failed to get valid JSON stats from API. Response was: ---"
+        echo "$stats"
+        echo "--------------------------------------------------------------------------------"
+        exit 1
+    fi
+    
     local actual_hits=$(echo ${stats} | jq '.hits')
     local actual_misses=$(echo ${stats} | jq '.misses')
 
@@ -70,6 +77,5 @@ function assert_stats_increment {
         exit 1
     fi
     
-    set +x
     echo "--- SUCCESS ${context} (Total Hits: ${actual_hits}, Total Misses: ${actual_misses}) ---"
 }
