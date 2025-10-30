@@ -1,0 +1,11 @@
+# Test ortamı için özel kural dosyası
+
+[[rules]]
+name = "Test Block Google"
+condition = { domain = "www.google.com" }
+action = "block"
+
+[[rules]]
+name = "Test Bypass Microsoft"
+condition = { domain = "www.microsoft.com" }
+action = "bypass-cache"
