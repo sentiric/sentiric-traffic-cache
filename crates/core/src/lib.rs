@@ -1,9 +1,10 @@
-use serde::{Deserialize, Serialize}; // <-- Serialize eklendi
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 // --- GÜNCELLENMİŞ KURAL YAPILARI ---
 
-#[derive(Debug, Serialize, Deserialize, Clone)] // <-- Serialize eklendi
+// HATA DÜZELTMESİ: '==' ile karşılaştırma yapabilmek için PartialEq ekliyoruz.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub enum Action {
     Allow,
@@ -11,14 +12,14 @@ pub enum Action {
     BypassCache,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)] // <-- Serialize eklendi
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub enum RuleCondition {
     Domain(String),
     UrlPattern(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)] // <-- Serialize eklendi
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Rule {
     pub name: String,
     pub condition: RuleCondition,

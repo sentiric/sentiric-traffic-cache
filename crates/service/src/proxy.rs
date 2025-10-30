@@ -97,36 +97,32 @@ async fn serve_http(
         req.uri().to_string()
     };
     
-    // URI'yi klonlayıp, isteğin URI'sini yeni oluşturulan string ile değiştiriyoruz.
-    // Bu, bypass durumunda forward_request'in doğru URI'yi kullanmasını sağlar.
     let original_uri = req.uri().clone();
     *req.uri_mut() = uri_string.parse().unwrap_or(original_uri);
     
-    match rule_engine.match_action(&uri_string) {
-        Action::Block => {
-            info!("Request blocked by rule engine: {}", uri_string);
-            let mut resp = Response::new(Body::from("Blocked by Sentiric Traffic Cache rule."));
-            *resp.status_mut() = http::StatusCode::FORBIDDEN;
-            return Ok(resp);
-        }
-        Action::BypassCache => {
-            info!("Request bypassing cache by rule engine: {}", uri_string);
-            // --- HATA DÜZELTMESİ ---
-            return match downloader::forward_request(req).await {
-                Ok(response) => Ok(response),
-                Err(e) => {
-                    error!("Failed to forward request (bypassed): {}", e);
-                    // `anyhow::Error`'u logla, ama `hyper::Error` döndür.
-                    let mut resp = Response::new(Body::from("Upstream request failed"));
-                    *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
-                    Ok(resp)
-                }
-            };
-        }
-        Action::Allow => {
-            // Devam et...
-        }
+    // --- HATA DÜZELTMESİ: BypassCache mantığını yeniden yapılandırıyoruz ---
+    let action = rule_engine.match_action(&uri_string);
+
+    if action == Action::Block {
+        info!("Request blocked by rule engine: {}", uri_string);
+        let mut resp = Response::new(Body::from("Blocked by Sentiric Traffic Cache rule."));
+        *resp.status_mut() = http::StatusCode::FORBIDDEN;
+        return Ok(resp);
     }
+    
+    if action == Action::BypassCache {
+        info!("Request bypassing cache by rule engine: {}", uri_string);
+        return match downloader::forward_request(req).await {
+            Ok(response) => Ok(response),
+            Err(e) => {
+                error!("Failed to forward request (bypassed): {}", e);
+                let mut resp = Response::new(Body::from("Upstream request failed"));
+                *resp.status_mut() = http::StatusCode::BAD_GATEWAY;
+                Ok(resp)
+            }
+        };
+    }
+    // --- DÜZELTME SONU ---
 
     info!(target_uri = %uri_string, "Handling HTTP request");
     
