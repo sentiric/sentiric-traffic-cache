@@ -129,7 +129,8 @@ jobs:
           docker run --rm
           --network=${{ steps.docker_info.outputs.network }}
           --dns=${{ steps.docker_info.outputs.ip }}
-          -v sentiric_certs:/app/.certs:ro
+          # Düzeltme: Yerel yol yerine isimlendirilmiş volume kullan.
+          -v tests_sentiric_certs:/app/.certs:ro
           -v ${{ github.workspace }}/tests:/tests
           ${{ steps.docker_info.outputs.image }}
           /tests/test-runner.sh /tests/scenarios/05_dns_block.test.sh
@@ -139,11 +140,12 @@ jobs:
           docker run --rm
           --network=${{ steps.docker_info.outputs.network }}
           --dns=${{ steps.docker_info.outputs.ip }}
-          -v sentiric_certs:/app/.certs:ro
+          # Düzeltme: Yerel yol yerine isimlendirilmiş volume kullan.
+          -v tests_sentiric_certs:/app/.certs:ro
           -v ${{ github.workspace }}/tests:/tests
           ${{ steps.docker_info.outputs.image }}
           /tests/test-runner.sh /tests/scenarios/06_dns_bypass.test.sh
-
+          
       # --- TEMİZLİK ---
       - name: Show logs on failure
         if: failure()
