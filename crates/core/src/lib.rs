@@ -12,8 +12,9 @@ pub enum Action {
     BypassCache,
 }
 
+// --- DEĞİŞİKLİK BURADA ---
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")] // Bu, UrlPattern -> url-pattern yapar
 pub enum RuleCondition {
     Domain(String),
     UrlPattern(String),

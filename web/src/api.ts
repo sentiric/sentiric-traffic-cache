@@ -12,7 +12,6 @@ export interface CacheEntry {
   sizeBytes: number;
 }
 
-// YENİ FlowEntry tipi
 export interface FlowEntry {
   id: string;
   method: string;
@@ -22,9 +21,10 @@ export interface FlowEntry {
   isHit: boolean;
 }
 
-// YENİ KURAL TİPLERİ
 export type Action = 'Allow' | 'Block' | 'BypassCache';
-export type RuleCondition = { domain: string } | { urlPattern: string };
+
+// API'den gelen `url-pattern` ile eşleşmesi için.
+export type RuleCondition = { domain: string } | { "url-pattern": string };
 
 export interface Rule {
   name: string;
@@ -34,34 +34,40 @@ export interface Rule {
 
 export type WsEvent =
   | { type: 'statsUpdated'; stats: CacheStats }
-  | { type: 'flowUpdated'; flow: FlowEntry }; // YENİ Olay
+  | { type: 'flowUpdated'; flow: FlowEntry };
 
-const API_BASE = '/api';
+// --- NİHAİ DÜZELTME: ADRESLERİ HER ZAMAN MUTLAK OLARAK TANIMLA ---
+// Backend'imiz her zaman 8080 portunda çalışır. Bu değişmez bir kuraldır.
+const API_BASE_URL = 'http://localhost:8080/api';
+const WS_BASE_URL = 'ws://localhost:8080/api';
 
 export async function fetchStats(): Promise<CacheStats> {
-  // ... (fonksiyon aynı)
-  const response = await fetch(`${API_BASE}/stats`);
+  const response = await fetch(`${API_BASE_URL}/stats`);
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
 }
 
 export async function fetchEntries(): Promise<CacheEntry[]> {
-  // ... (fonksiyon aynı)
-  const response = await fetch(`${API_BASE}/entries`);
+  const response = await fetch(`${API_BASE_URL}/entries`);
   if (!response.ok) throw new Error('Failed to fetch entries');
   return response.json();
 }
 
 export async function clearCache(): Promise<Response> {
-  // ... (fonksiyon aynı)
-  const response = await fetch(`${API_BASE}/clear`, { method: 'POST' });
+  const response = await fetch(`${API_BASE_URL}/clear`, { method: 'POST' });
   if (!response.ok) throw new Error('Failed to clear cache');
   return response;
 }
 
+export async function fetchRules(): Promise<Rule[]> {
+  const response = await fetch(`${API_BASE_URL}/rules`);
+  if (!response.ok) throw new Error('Failed to fetch rules');
+  return response.json();
+}
+
 interface EventStreamCallbacks {
   onStatsUpdated?: (stats: CacheStats) => void;
-  onFlowUpdated?: (flow: FlowEntry) => void; // YENİ callback
+  onFlowUpdated?: (flow: FlowEntry) => void;
   onOpen?: () => void;
   onClose?: () => void;
 }
@@ -69,8 +75,7 @@ interface EventStreamCallbacks {
 let socket: WebSocket | null = null;
 
 function connect(callbacks: EventStreamCallbacks) {
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${wsProtocol}//${window.location.host}${API_BASE}/events`;
+  const wsUrl = `${WS_BASE_URL}/events`;
   socket = new WebSocket(wsUrl);
 
   socket.onopen = callbacks.onOpen ?? null;
@@ -79,9 +84,11 @@ function connect(callbacks: EventStreamCallbacks) {
   socket.onmessage = (event) => {
     try {
       const parsedEvent = JSON.parse(event.data) as WsEvent;
+      // Gelen JSON'daki anahtar isimlerini kontrol etmek için loglayalım
+      // console.log("Received Event:", parsedEvent); 
       if (parsedEvent.type === 'statsUpdated') {
         callbacks.onStatsUpdated?.(parsedEvent.stats);
-      } else if (parsedEvent.type === 'flowUpdated') { // YENİ Olayı işle
+      } else if (parsedEvent.type === 'flowUpdated') {
         callbacks.onFlowUpdated?.(parsedEvent.flow);
       }
     } catch (e) { console.error("Failed to parse event:", e); }
@@ -94,7 +101,6 @@ function connect(callbacks: EventStreamCallbacks) {
 }
 
 export function subscribeToEvents(callbacks: EventStreamCallbacks) {
-  // ... (fonksiyon aynı)
   const reconnectingCallbacks = {
     ...callbacks,
     onClose: () => {
@@ -107,10 +113,4 @@ export function subscribeToEvents(callbacks: EventStreamCallbacks) {
   if (!socket) {
     connect(reconnectingCallbacks);
   }
-}
-
-export async function fetchRules(): Promise<Rule[]> {
-  const response = await fetch(`${API_BASE}/rules`);
-  if (!response.ok) throw new Error('Failed to fetch rules');
-  return response.json();
 }
