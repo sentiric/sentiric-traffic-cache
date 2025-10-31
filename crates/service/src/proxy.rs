@@ -14,7 +14,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-use tracing::{debug, error, info, warn, Instrument};
+// ======================== DÜZELTME BAŞLANGICI ========================
+use tracing::{error, info, warn, Instrument};
+// ========================= DÜZELTME BİTİŞİ =========================
 use uuid::Uuid;
 
 pub async fn run_server(
@@ -179,9 +181,6 @@ async fn serve_https(
         let cache = cache.clone();
         let host = host.clone();
         async move {
-            // İyileştirme: Buradaki gereksiz başlık temizleme kodu kaldırıldı.
-            // Bu sorumluluk artık downloader'a aittir.
-
             let authority = host.parse::<http::uri::Authority>().unwrap();
             let uri = Uri::builder()
                 .scheme("https")
@@ -194,7 +193,6 @@ async fn serve_https(
         }
     });
 
-    // HTTP/2'ye izin veriyoruz, çünkü downloader artık başlıkları temizliyor.
     Http::new()
         .serve_connection(stream, service)
         .await
