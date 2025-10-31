@@ -13,13 +13,13 @@ set -x
 # Testler bittiğinde ortamı temizlemek için bir fonksiyon
 cleanup() {
   echo "--- Cleaning up Docker test artifacts ---"
-  # Test sırasında oluşturulan compose projesini durdur ve sil
-  docker compose -f compose.test.yml down --rmi all --volumes || true
-  # Test sırasında oluşturulan imajı sil
+  # DÜZELTME: Dosya varsa komutu çalıştır, yoksa hata verme.
+  if [ -f "compose.test.yml" ]; then
+    docker compose -f compose.test.yml down --rmi all --volumes
+  fi
   docker rmi docker-test-image || true
-  # Test sırasında indirilen imajları sil
   docker rmi hello-world alpine nginx || true
-  # Artık dosyaları sil
+  # DÜZELTME: Var olan dosyaları güvenli bir şekilde sil.
   rm -f Dockerfile.test compose.test.yml
 }
 trap cleanup EXIT
@@ -37,7 +37,8 @@ echo "--- SUCCESS: 'docker pull' completed successfully. ---"
 echo "--- Step 2: Running 'docker build' ---"
 # Anlık bir Dockerfile oluştur
 echo -e 'FROM alpine:latest\nCMD ["echo", "Build successful!"]' > Dockerfile.test
-docker build -t docker-test-image .
+# DÜZELTME: -f bayrağı ile doğru Dockerfile ismini belirt.
+docker build -t docker-test-image -f Dockerfile.test .
 echo "--- SUCCESS: 'docker build' completed successfully. ---"
 
 # --- Test 3: docker compose up ---
