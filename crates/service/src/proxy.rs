@@ -189,5 +189,9 @@ async fn serve_https(
         }
     });
 
-    Http::new().serve_connection(stream, service).await.context("Error serving HTTPS connection")
+    // .http1_only(true) kaldırılmış hali doğru.
+    Http::new()
+        .serve_connection(stream, service)
+        .await
+        .context("Error serving HTTPS connection")
 }
