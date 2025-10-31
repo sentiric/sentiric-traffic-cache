@@ -1,4 +1,5 @@
 // File: crates/service/src/proxy.rs
+
 use crate::certs::CertificateAuthority;
 use crate::cache::CacheManager;
 use crate::downloader;
@@ -7,18 +8,16 @@ use crate::rules::RuleEngine;
 use anyhow::{Context, Result};
 use hyper::server::conn::Http;
 use hyper::service::service_fn;
-// ======================== DÜZELTME BAŞLANGICI ========================
-// `to_bytes` fonksiyonunu import ediyoruz.
-use hyper::{body, upgrade, Body, Method, Request, Response, Uri};
-// ========================= DÜZELTME BİTİŞİ =========================
+use hyper::{upgrade, Body, Method, Request, Response, Uri};
 use sentiric_core::{Action, FlowEntry};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-use tracing::{debug, error, info, warn, Instrument};
+// ======================== DÜZELTME BAŞLANGICI ========================
+use tracing::{error, info, warn, Instrument};
+// ========================= DÜZELTME BİTİŞİ =========================
 use uuid::Uuid;
-
 
 pub async fn run_server(
     addr: SocketAddr,
@@ -59,26 +58,13 @@ pub async fn run_server(
 }
 
 async fn proxy_service(
-    mut req: Request<Body>, // 'req' artık mutable olmalı
+    req: Request<Body>,
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
     if Method::CONNECT == req.method() {
         if let Some(host) = req.uri().authority().map(|auth| auth.to_string()) {
             tokio::spawn(async move {
-                // ======================== NİHAİ DÜZELTME BAŞLANGICI ========================
-                // Sürdürülebilirlik: Bu, tüm HTTPS tünel hatalarının kök nedenidir.
-                // Bir isteği `upgrade` etmeden önce, `hyper` bu isteğin gövdesinin
-                // tamamen tüketilmesini bekler. Eğer tüketmezsek, `hyper` bunun bir
-                // hata olduğunu varsayar ve istemci bağlantısını kapatır. Bu da
-                // tünel kurulduktan sonraki ilk okuma denemesinde "unexpected end of file"
-                // hatasına neden olur.
-                //
-                // İsteğin gövdesini `upgrade::on()`'a devretmeden önce tüketerek bu sorunu çözüyoruz.
-                let body = req.body_mut();
-                let _ = body::to_bytes(body).await;
-                // ========================= NİHAİ DÜZELTME BİTİŞİ =========================
-
                 match upgrade::on(req).await {
                     Ok(upgraded) => {
                         if let Err(e) = serve_https(upgraded, host, ca, cache).await {
@@ -100,7 +86,6 @@ async fn proxy_service(
         serve_http(req, cache, false).await
     }
 }
-
 
 async fn serve_http(
     mut req: Request<Body>,
@@ -143,15 +128,16 @@ async fn serve_http(
     let cache_key = uri_string.clone();
     if let Some(cached_body) = cache.get(&cache_key).await {
         info!("[HIT] {}", uri_string);
-        let flow = FlowEntry {
-            id: Uuid::new_v4().to_string(),
-            method: req.method().to_string(),
-            uri: uri_string,
-            status_code: 200,
-            response_size_bytes: 0,
-            is_hit: true,
-        };
-        let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated { flow });
+        let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated {
+            flow: FlowEntry {
+                id: Uuid::new_v4().to_string(),
+                method: req.method().to_string(),
+                uri: uri_string,
+                status_code: 200,
+                response_size_bytes: 0,
+                is_hit: true,
+            }
+        });
         return Ok(Response::new(cached_body));
     }
 
@@ -160,15 +146,16 @@ async fn serve_http(
 
     match downloader::forward_request(req).await {
         Ok(mut response) => {
-            let flow = FlowEntry {
-                id: Uuid::new_v4().to_string(),
-                method: "GET".to_string(), // Simplified for now
-                uri: uri_string.clone(),
-                status_code: response.status().as_u16(),
-                response_size_bytes: response.headers().get(hyper::header::CONTENT_LENGTH).and_then(|v| v.to_str().ok()).and_then(|s| s.parse().ok()).unwrap_or(0),
-                is_hit: false,
-            };
-             let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated { flow });
+             let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated {
+                 flow: FlowEntry {
+                    id: Uuid::new_v4().to_string(),
+                    method: "GET".to_string(),
+                    uri: uri_string.clone(),
+                    status_code: response.status().as_u16(),
+                    response_size_bytes: response.headers().get(hyper::header::CONTENT_LENGTH).and_then(|v| v.to_str().ok()).and_then(|s| s.parse().ok()).unwrap_or(0),
+                    is_hit: false,
+                }
+             });
 
             let body_stream = std::mem::replace(response.body_mut(), Body::empty());
             if let Ok(body_for_client) = cache.put_stream(cache_key, body_stream).await {
@@ -198,25 +185,6 @@ async fn serve_https(
         let cache = cache.clone();
         let host = host.clone();
         async move {
-            // ======================== NİHAİ DÜZELTME BAŞLANGICI ========================
-            // Sürdürülebilirlik: Bu temizlik, İSTEMCİ'den gelen isteği temizler.
-            // İstemci (örn. curl), HTTP/2'ye yükseltilmiş bir tünel üzerinden
-            // hala HTTP/1.1'e özgü "hop-by-hop" başlıkları gönderebilir.
-            // Bu başlıkları burada temizlemezsek, KENDİ hyper sunucumuz
-            // "Connection header illegal in HTTP/2" uyarısı verir ve bağlantıyı kapatır.
-            const HOP_BY_HOP_HEADERS: &[&str] = &[
-                "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-                "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
-            ];
-            
-            let headers = req.headers_mut();
-            for header in HOP_BY_HOP_HEADERS {
-                if headers.remove(*header).is_some() {
-                    debug!("Stripped client hop-by-hop header in tunnel: {}", header);
-                }
-            }
-            // ========================= NİHAİ DÜZELTME BİTİŞİ =========================
-
             let authority = host.parse::<http::uri::Authority>().unwrap();
             let uri = Uri::builder()
                 .scheme("https")
@@ -229,7 +197,6 @@ async fn serve_https(
         }
     });
 
-    // Hem HTTP/1.1 hem de HTTP/2'ye izin ver.
     Http::new()
         .serve_connection(stream, service)
         .await
