@@ -7,8 +7,8 @@ services:
     ports:
       - "3128:3128"
       - "8080:8080"
-      - "53:53/udp"      
-    volumes:    
+      - "53:53/udp"
+    volumes:
       - ../config.toml:/app/config.toml
       - ./rules.test.toml:/app/rules.toml
       - sentiric_certs:/app/.certs
@@ -20,25 +20,31 @@ services:
       timeout: 5s
       retries: 15
 
-  tester:
+  # YENİ TEST KOŞUCUSU SERVİSİ
+  test-runner:
     build:
       context: .
       dockerfile: Dockerfile.tester
-    # ======================== DÜZELTME BAŞLANGICI ========================
-    # İmaj adını açıkça belirleyerek CI/yerel komutlarda güvenilir bir
-    # şekilde referans vermemizi sağlıyoruz.
     image: sentiric-tester-image
-    # ========================= DÜZELTME BİTİŞİ =========================
-    container_name: sentiric-tester
+    container_name: sentiric-tester-runner
+    # --- KRİTİK DEĞİŞİKLİK 1: DNS AYARI ---
+    # Docker'ın kendi ağı içindeki DNS çözümlemesini kullanarak 'app'
+    # servisinin IP'sini otomatik olarak bulmasını sağlıyoruz.
+    dns:
+      - app
     environment:
+      # Proxy değişkenleri hala bazı testler için gerekli olabilir.
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
       - no_proxy=app,localhost
     volumes:
       - sentiric_certs:/app/.certs:ro
-    command: tail -f /dev/null
-    networks:
-      - testnet
+      - ../tests:/tests # test script'lerini mount ediyoruz
+    # --- KRİTİK DEĞİŞİKLİK 2: KOMUT ---
+    # Artık sonsuza kadar çalışmıyor. Testleri çalıştırıp çıkıyor.
+    command: /tests/test-runner.sh
+    # --- KRİTİK DEĞİŞİKLİK 3: BAĞIMLILIK ---
+    # 'app' servisi sağlıklı olmadan testleri başlatma.
     depends_on:
       app:
         condition: service_healthy

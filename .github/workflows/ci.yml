@@ -80,85 +80,25 @@ jobs:
           npm run build
 
   integration_test:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [backend_tests, frontend_build]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Start services via Docker Compose
-        run: docker compose -f tests/docker-compose.integration.yml up --build -d
+      name: Integration Tests
+      runs-on: ubuntu-latest
+      needs: [backend_tests, frontend_build]
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
 
-      - name: Wait for services to be healthy
-        run: |
-          echo "Waiting for 'app' service to be healthy..."
-          timeout 60s bash -c 'until docker ps | grep "sentiric-app-test" | grep "(healthy)"; do sleep 2; done'
+        # YENİ VE BASİTLEŞTİRİLMİŞ TEST ADIMI
+        - name: 🧪 Run All Integration Tests
+          run: docker compose -f tests/docker-compose.integration.yml up --build --abort-on-container-exit --exit-code-from test-runner
 
-      # --- HER TEST SENARYOSU İÇİN AYRI ADIMLAR ---
-      - name: 🧪 Run DNS Test
-        run: docker compose -f tests/docker-compose.integration.yml exec tester /tests/test-runner.sh /tests/scenarios/01_dns.test.sh
+        # --- TEMİZLİK (Hata durumunda logları göstermek hala faydalı) ---
+        - name: Show logs on failure
+          if: failure()
+          run: docker compose -f tests/docker-compose.integration.yml logs
 
-      - name: 🧪 Run Cache Test
-        run: docker compose -f tests/docker-compose.integration.yml exec tester /tests/test-runner.sh /tests/scenarios/02_cache.test.sh
-
-      - name: 🧪 Run Rule (Block) Test
-        run: docker compose -f tests/docker-compose.integration.yml exec tester /tests/test-runner.sh /tests/scenarios/03_rule_block.test.sh
-
-      - name: 🧪 Run Rule (Bypass) Test
-        run: docker compose -f tests/docker-compose.integration.yml exec tester /tests/test-runner.sh /tests/scenarios/04_rule_bypass.test.sh
-      
-      # --- NİHAİ UÇTAN UCA DNS TESTLERİ (docker run ile) ---
-
-      - name: Get Docker Network Info for DNS Tests
-        id: docker_info
-        run: |
-          APP_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sentiric-app-test)
-          NETWORK_NAME=$(docker inspect sentiric-app-test -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
-          # Düzeltme: Artık imaj adını doğrudan biliyoruz.
-          TESTER_IMAGE="sentiric-tester-image"
-          echo "Found app container IP: $APP_IP"
-          echo "Found network name: $NETWORK_NAME"
-          echo "Using tester image: $TESTER_IMAGE"
-          echo "ip=$APP_IP" >> $GITHUB_OUTPUT
-          echo "network=$NETWORK_NAME" >> $GITHUB_OUTPUT
-          echo "image=$TESTER_IMAGE" >> $GITHUB_OUTPUT
-
-      - name: 🧪 Run DNS End-to-End (Block) Test
-        run: >
-          docker run --rm
-          --network=${{ steps.docker_info.outputs.network }}
-          --dns=${{ steps.docker_info.outputs.ip }}
-          -v tests_sentiric_certs:/app/.certs:ro
-          -v ${{ github.workspace }}/tests:/tests
-          ${{ steps.docker_info.outputs.image }}
-          /tests/test-runner.sh /tests/scenarios/05_dns_block.test.sh
-
-      - name: 🧪 Run DNS End-to-End (Bypass) Test
-        run: >
-          docker run --rm
-          --network=${{ steps.docker_info.outputs.network }}
-          --dns=${{ steps.docker_info.outputs.ip }}
-          -v tests_sentiric_certs:/app/.certs:ro
-          -v ${{ github.workspace }}/tests:/tests
-          ${{ steps.docker_info.outputs.image }}
-          /tests/test-runner.sh /tests/scenarios/06_dns_bypass.test.sh
-
-      - name: 🧪 Run DNS End-to-End (Cache) Test
-        run: >
-          docker run --rm
-          --network=${{ steps.docker_info.outputs.network }}
-          --dns=${{ steps.docker_info.outputs.ip }}
-          -v tests_sentiric_certs:/app/.certs:ro
-          -v ${{ github.workspace }}/tests:/tests
-          ${{ steps.docker_info.outputs.image }}
-          /tests/test-runner.sh /tests/scenarios/07_dns_cache.test.sh          
-          
-      # --- TEMİZLİK ---
-      - name: Show logs on failure
-        if: failure()
-        run: docker compose -f tests/docker-compose.integration.yml logs
-
-      - name: Stop services
-        if: always()
-        run: docker compose -f tests/docker-compose.integration.yml down
+        # Temizleme adımı artık gerekli değil çünkü 'docker compose up' bittiğinde
+        # 'test-runner' duruyor ve --abort-on-container-exit diğerlerini de durduruyor.
+        # İsteğe bağlı olarak 'down' komutu eklenebilir ama genellikle gerekmez.
+        - name: Stop services
+          if: always()
+          run: docker compose -f tests/docker-compose.integration.yml down --remove-orphans
