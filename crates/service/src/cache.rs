@@ -132,16 +132,20 @@ impl CacheManager {
     }
 
     pub async fn clear_cache(&self) -> Result<()> {
-        let mut read_dir = fs::read_dir(&self.disk_path).await?;
-        while let Some(entry) = read_dir.next_entry().await? {
-            if entry.file_type().await?.is_file() {
-                fs::remove_file(entry.path()).await?;
+            let mut read_dir = fs::read_dir(&self.disk_path).await?;
+            while let Some(entry) = read_dir.next_entry().await? {
+                if entry.file_type().await?.is_file() {
+                    fs::remove_file(entry.path()).await?;
+                }
             }
+            // --- DÜZELTME BAŞLANGICI: Bellek istatistiklerini de sıfırla ---
+            self.stats.hits.store(0, Ordering::Relaxed);
+            self.stats.misses.store(0, Ordering::Relaxed);
+            // --- DÜZELTME SONU ---
+            self.stats.disk_items.store(0, Ordering::Relaxed);
+            self.stats.total_disk_size_bytes.store(0, Ordering::Relaxed);
+            self.stats.bytes_saved.store(0, Ordering::Relaxed);
+            info!("Cache cleared successfully.");
+            Ok(())
         }
-        self.stats.disk_items.store(0, Ordering::Relaxed);
-        self.stats.total_disk_size_bytes.store(0, Ordering::Relaxed);
-        self.stats.bytes_saved.store(0, Ordering::Relaxed); // <-- YENİ
-        info!("Cache cleared successfully.");
-        Ok(())
-    }
 }

@@ -28,18 +28,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.tester
-    image: sentiric-tester-image
-    container_name: sentiric-tester-runner
+    # ARTIK ORKESTRASYON YAPMIYOR, SADECE BEKLİYOR
+    # Bu komut, konteynerin biz `exec` ile bağlanana kadar çalışır halde kalmasını sağlar.
+    command: tail -f /dev/null
     environment:
+      # Ortam değişkenleri exec komutlarında da kullanılabilir, burada kalabilirler
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
       - no_proxy=app,localhost
     volumes:
       - ../tests:/tests
       - sentiric_certs:/app/.certs:ro
-      # --- YENİ SATIR: DOCKER SOKETİNİ BAĞLAMA ---
       - /var/run/docker.sock:/var/run/docker.sock
-    command: /tests/test-runner.sh
     depends_on:
       app:
         condition: service_healthy

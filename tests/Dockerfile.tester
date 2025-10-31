@@ -31,7 +31,7 @@ WORKDIR /tests
 COPY . .
 
 # Script'lere çalıştırma izni ver
-RUN chmod +x test-runner.sh helpers.sh scenarios/*.sh entrypoint.sh
+RUN chmod +x helpers.sh scenarios/*.sh entrypoint.sh
 
 # Sertifika kurulumunu ve ana komutu çalıştır
 ENTRYPOINT ["/tests/entrypoint.sh"]

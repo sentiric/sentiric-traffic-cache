@@ -87,18 +87,13 @@ jobs:
         - name: Checkout repository
           uses: actions/checkout@v4
 
-        # YENİ VE BASİTLEŞTİRİLMİŞ TEST ADIMI
         - name: 🧪 Run All Integration Tests
-          run: docker compose -f tests/docker-compose.integration.yml up --build --abort-on-container-exit --exit-code-from test-runner
+          run: ./tests/run-local-tests.sh
 
-        # --- TEMİZLİK (Hata durumunda logları göstermek hala faydalı) ---
         - name: Show logs on failure
           if: failure()
           run: docker compose -f tests/docker-compose.integration.yml logs
 
-        # Temizleme adımı artık gerekli değil çünkü 'docker compose up' bittiğinde
-        # 'test-runner' duruyor ve --abort-on-container-exit diğerlerini de durduruyor.
-        # İsteğe bağlı olarak 'down' komutu eklenebilir ama genellikle gerekmez.
         - name: Stop services
           if: always()
           run: docker compose -f tests/docker-compose.integration.yml down --remove-orphans
