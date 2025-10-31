@@ -24,6 +24,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.tester
+    # ======================== DÜZELTME BAŞLANGICI ========================
+    # İmaj adını açıkça belirleyerek CI/yerel komutlarda güvenilir bir
+    # şekilde referans vermemizi sağlıyoruz.
+    image: sentiric-tester-image
+    # ========================= DÜZELTME BİTİŞİ =========================
     container_name: sentiric-tester
     environment:
       - http_proxy=http://app:3128

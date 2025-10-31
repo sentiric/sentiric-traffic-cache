@@ -110,21 +110,20 @@ jobs:
       
       # --- NİHAİ UÇTAN UCA DNS TESTLERİ (docker run ile) ---
 
-      # Adım 1: Gerekli bilgileri (IP, ağ adı, imaj adı) al
       - name: Get Docker Network Info for DNS Tests
         id: docker_info
         run: |
           APP_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sentiric-app-test)
           NETWORK_NAME=$(docker inspect sentiric-app-test -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
-          TESTER_IMAGE=$(docker compose -f tests/docker-compose.integration.yml images --format '{{.Repository}}' tester)
+          # Düzeltme: Artık imaj adını doğrudan biliyoruz.
+          TESTER_IMAGE="sentiric-tester-image"
           echo "Found app container IP: $APP_IP"
           echo "Found network name: $NETWORK_NAME"
-          echo "Found tester image: $TESTER_IMAGE"
+          echo "Using tester image: $TESTER_IMAGE"
           echo "ip=$APP_IP" >> $GITHUB_OUTPUT
           echo "network=$NETWORK_NAME" >> $GITHUB_OUTPUT
           echo "image=$TESTER_IMAGE" >> $GITHUB_OUTPUT
 
-      # Adım 2: Alınan bilgileri kullanarak 'docker run' ile DNS testlerini çalıştır
       - name: 🧪 Run DNS End-to-End (Block) Test
         run: >
           docker run --rm
