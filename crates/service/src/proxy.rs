@@ -1,3 +1,5 @@
+// File: crates/service/src/proxy.rs
+
 use crate::certs::CertificateAuthority;
 use crate::cache::CacheManager;
 use crate::downloader;
@@ -12,7 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-use tracing::{error, info, warn, Instrument};
+use tracing::{debug, error, info, warn, Instrument};
 use uuid::Uuid;
 
 pub async fn run_server(
@@ -177,6 +179,27 @@ async fn serve_https(
         let cache = cache.clone();
         let host = host.clone();
         async move {
+            // ======================== YENİ KOD BAŞLANGICI ========================
+            // Sürdürülebilirlik & İyileştirme: Kaldırılacak başlıkları sabit bir dizide tanımla.
+            const HOP_BY_HOP_HEADERS: &[&str] = &[
+                "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+                "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
+            ];
+            
+            // Düzeltme & Gözlemlenebilirlik:
+            // Bir CONNECT tüneli kurulduktan sonra, istemci ve sunucu arasındaki
+            // bağlantı genellikle HTTP/2'ye yükseltilir. HTTP/1.1'e özgü olan
+            // 'hop-by-hop' başlıkları, HTTP/2'de yasa dışıdır ve bağlantının
+            // sonlandırılmasına neden olabilir. Bu yüzden bu başlıkları temizliyoruz.
+            let headers = req.headers_mut();
+            for header in HOP_BY_HOP_HEADERS {
+                if headers.remove(*header).is_some() {
+                    // Gözlemlenebilirlik: Hangi başlığın temizlendiğini logla.
+                    debug!("Stripped hop-by-hop header: {}", header);
+                }
+            }
+            // ========================= YENİ KOD BİTİŞİ =========================
+
             let authority = host.parse::<http::uri::Authority>().unwrap();
             let uri = Uri::builder()
                 .scheme("https")
@@ -188,8 +211,7 @@ async fn serve_https(
             serve_http(req, cache, true).await
         }
     });
-
-    // .http1_only(true) kaldırılmış hali doğru.
+    
     Http::new()
         .serve_connection(stream, service)
         .await
