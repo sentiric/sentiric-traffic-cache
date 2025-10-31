@@ -1,3 +1,5 @@
+// File: crates/service/src/certs.rs
+
 use anyhow::{Context, Result};
 use rcgen::{
     Certificate, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair, SanType,
@@ -18,7 +20,6 @@ pub struct CertificateAuthority {
 }
 
 impl CertificateAuthority {
-    /// Creates a new CertificateAuthority instance.
     pub fn new(path: &str) -> Result<Self> {
         let certs_path = Path::new(path);
         fs::create_dir_all(certs_path).context("Failed to create certificate directory")?;
@@ -57,8 +58,7 @@ impl CertificateAuthority {
             leaf_cache: Mutex::new(HashMap::new()),
         })
     }
-
-    /// Generates or retrieves a cached TLS server configuration for the given domain.
+    
     pub fn get_server_config(&self, domain: &str) -> Result<Arc<ServerConfig>> {
         let mut cache = self.leaf_cache.lock().unwrap();
         if let Some(config) = cache.get(domain) {
@@ -92,7 +92,12 @@ impl CertificateAuthority {
             .with_no_client_auth()
             .with_single_cert(cert_chain, key)?;
         
-        config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+        // ======================== NİHAİ DÜZELTME ========================
+        // Sürdürülebilirlik: ALPN protokollerini, HTTP katmanının beklentisiyle
+        // (http1_only) tutarlı hale getiriyoruz. Bu, TLS el sıkışması sırasında
+        // istemciyle en başından doğru protokol üzerinde anlaşmamızı sağlar.
+        config.alpn_protocols = vec![b"http/1.1".to_vec()];
+        // ========================= DÜZELTME BİTİŞİ =========================
 
         let arc_config = Arc::new(config);
         cache.insert(domain.to_string(), arc_config.clone());
