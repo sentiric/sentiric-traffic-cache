@@ -4,7 +4,6 @@ export APP_HOST="app"
 export PROXY_URL="http://${APP_HOST}:3128"
 export MGMT_URL="http://${APP_HOST}:8080"
 export OUTPUT_FILE="/dev/null"
-# YENİ: Paylaşılan sertifikanın yolu
 export CA_CERT_PATH="/app/.certs/ca.crt"
 
 # Fonksiyon: Mesajı başlık formatında yazdır
@@ -15,7 +14,7 @@ function print_header {
     echo "================================================="
 }
 
-# YENİ: Proxy üzerinden güvenli curl isteği yapan fonksiyon
+# Proxy üzerinden güvenli curl isteği yapan fonksiyon
 function run_proxied_curl {
     # -s: sessiz mod
     # -L: yönlendirmeleri takip et
@@ -24,6 +23,15 @@ function run_proxied_curl {
     # "$@": Fonksiyona gelen diğer tüm argümanları (URL gibi) ekle
     echo "--- RUNNING (proxied): curl $*"
     curl -s -L --proxy ${PROXY_URL} --cacert ${CA_CERT_PATH} "$@"
+}
+
+# YENİ FONKSİYON: Proxy OLMADAN, sadece DNS yönlendirmesiyle güvenli curl isteği yapar
+function run_direct_curl {
+    # Bu fonksiyon şeffaf DNS proxy'sini test etmek için kullanılır.
+    # --proxy bayrağı yoktur, ancak trafiğimizin arasına girildiği için
+    # özel CA sertifikamıza güvenmemiz gerekir.
+    echo "--- RUNNING (direct, via DNS): curl $*"
+    curl -s -L --cacert ${CA_CERT_PATH} "$@"
 }
 
 
