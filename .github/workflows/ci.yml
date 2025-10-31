@@ -143,6 +143,16 @@ jobs:
           -v ${{ github.workspace }}/tests:/tests
           ${{ steps.docker_info.outputs.image }}
           /tests/test-runner.sh /tests/scenarios/06_dns_bypass.test.sh
+
+      - name: 🧪 Run DNS End-to-End (Cache) Test
+        run: >
+          docker run --rm
+          --network=${{ steps.docker_info.outputs.network }}
+          --dns=${{ steps.docker_info.outputs.ip }}
+          -v tests_sentiric_certs:/app/.certs:ro
+          -v ${{ github.workspace }}/tests:/tests
+          ${{ steps.docker_info.outputs.image }}
+          /tests/test-runner.sh /tests/scenarios/07_dns_cache.test.sh          
           
       # --- TEMİZLİK ---
       - name: Show logs on failure
