@@ -129,7 +129,6 @@ jobs:
           docker run --rm
           --network=${{ steps.docker_info.outputs.network }}
           --dns=${{ steps.docker_info.outputs.ip }}
-          # Düzeltme: Yerel yol yerine isimlendirilmiş volume kullan.
           -v tests_sentiric_certs:/app/.certs:ro
           -v ${{ github.workspace }}/tests:/tests
           ${{ steps.docker_info.outputs.image }}
@@ -140,7 +139,6 @@ jobs:
           docker run --rm
           --network=${{ steps.docker_info.outputs.network }}
           --dns=${{ steps.docker_info.outputs.ip }}
-          # Düzeltme: Yerel yol yerine isimlendirilmiş volume kullan.
           -v tests_sentiric_certs:/app/.certs:ro
           -v ${{ github.workspace }}/tests:/tests
           ${{ steps.docker_info.outputs.image }}
