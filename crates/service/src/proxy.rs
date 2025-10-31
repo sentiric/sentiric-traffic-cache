@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-use tracing::{debug, error, info, warn, Instrument};
+use tracing::{error, info, warn, Instrument};
 use uuid::Uuid;
 
 pub async fn run_server(
@@ -179,26 +179,7 @@ async fn serve_https(
         let cache = cache.clone();
         let host = host.clone();
         async move {
-            // ======================== YENİ KOD BAŞLANGICI ========================
-            // Sürdürülebilirlik & İyileştirme: Kaldırılacak başlıkları sabit bir dizide tanımla.
-            const HOP_BY_HOP_HEADERS: &[&str] = &[
-                "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-                "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
-            ];
-            
-            // Düzeltme & Gözlemlenebilirlik:
-            // Bir CONNECT tüneli kurulduktan sonra, istemci ve sunucu arasındaki
-            // bağlantı genellikle HTTP/2'ye yükseltilir. HTTP/1.1'e özgü olan
-            // 'hop-by-hop' başlıkları, HTTP/2'de yasa dışıdır ve bağlantının
-            // sonlandırılmasına neden olabilir. Bu yüzden bu başlıkları temizliyoruz.
-            let headers = req.headers_mut();
-            for header in HOP_BY_HOP_HEADERS {
-                if headers.remove(*header).is_some() {
-                    // Gözlemlenebilirlik: Hangi başlığın temizlendiğini logla.
-                    debug!("Stripped hop-by-hop header: {}", header);
-                }
-            }
-            // ========================= YENİ KOD BİTİŞİ =========================
+            // İyileştirme: Bir önceki adımdaki gereksiz başlık temizleme kodu kaldırıldı.
 
             let authority = host.parse::<http::uri::Authority>().unwrap();
             let uri = Uri::builder()
@@ -211,9 +192,17 @@ async fn serve_https(
             serve_http(req, cache, true).await
         }
     });
-    
+
+    // ======================== YENİ KOD BAŞLANGICI ========================
+    // Düzeltme & Sürdürülebilirlik:
+    // Tünel içindeki bağlantıyı HTTP/1.1'e zorla. Bu, istemcinin (örn. curl)
+    // HTTP/2'ye yükseltme yapmasını ve HTTP/2'de yasa dışı olan HTTP/1.1
+    // başlıkları (örn. 'Connection') göndermesini engeller. Bu sayede
+    // protokol uyumsuzluğu hatasının önüne geçilir.
     Http::new()
+        .http1_only(true) 
         .serve_connection(stream, service)
         .await
         .context("Error serving HTTPS connection")
+    // ========================= YENİ KOD BİTİŞİ =========================
 }
