@@ -1,9 +1,13 @@
+# tests/docker-compose.integration.yml
+
 services:
   app:
     build:
       context: ..
       dockerfile: Dockerfile
     container_name: sentiric-app-test
+    # Servis adını hostname olarak ayarlayarak daha stabil hale getiriyoruz.
+    hostname: app
     ports:
       - "3128:3128"
       - "8080:8080"
@@ -20,34 +24,30 @@ services:
       timeout: 5s
       retries: 15
 
-  # YENİ TEST KOŞUCUSU SERVİSİ
   test-runner:
     build:
       context: .
       dockerfile: Dockerfile.tester
     image: sentiric-tester-image
     container_name: sentiric-tester-runner
-    # --- KRİTİK DEĞİŞİKLİK 1: DNS AYARI ---
-    # Docker'ın kendi ağı içindeki DNS çözümlemesini kullanarak 'app'
-    # servisinin IP'sini otomatik olarak bulmasını sağlıyoruz.
-    dns:
-      - app
+    # --- DÜZELTME: 'dns' bloğu tamamen kaldırıldı ---
+    # Artık Docker'ın kendi iç DNS çözümlemesine güveniyoruz.
+    # 'test-runner' içindeki /etc/resolv.conf, Docker'ın kendi
+    # DNS sunucusunu (genellikle 127.0.0.11) gösterecek ve bu sunucu
+    # 'app' ismini doğru IP'ye çözecektir.
     environment:
-      # Proxy değişkenleri hala bazı testler için gerekli olabilir.
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
       - no_proxy=app,localhost
     volumes:
+      - ../tests:/tests
       - sentiric_certs:/app/.certs:ro
-      - ../tests:/tests # test script'lerini mount ediyoruz
-    # --- KRİTİK DEĞİŞİKLİK 2: KOMUT ---
-    # Artık sonsuza kadar çalışmıyor. Testleri çalıştırıp çıkıyor.
     command: /tests/test-runner.sh
-    # --- KRİTİK DEĞİŞİKLİK 3: BAĞIMLILIK ---
-    # 'app' servisi sağlıklı olmadan testleri başlatma.
     depends_on:
       app:
         condition: service_healthy
+    networks:
+      - testnet
 
 networks:
   testnet:
