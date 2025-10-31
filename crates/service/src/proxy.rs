@@ -15,7 +15,8 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 // ======================== DÜZELTME BAŞLANGICI ========================
-use tracing::{error, info, warn, Instrument};
+// 'debug' import'unu geri ekliyoruz çünkü tekrar kullanacağız.
+use tracing::{debug, error, info, warn, Instrument};
 // ========================= DÜZELTME BİTİŞİ =========================
 use uuid::Uuid;
 
@@ -181,6 +182,25 @@ async fn serve_https(
         let cache = cache.clone();
         let host = host.clone();
         async move {
+            // ======================== NİHAİ DÜZELTME BAŞLANGICI ========================
+            // Sürdürülebilirlik: Bu temizlik, İSTEMCİ'den gelen isteği temizler.
+            // İstemci (örn. curl), HTTP/2'ye yükseltilmiş bir tünel üzerinden
+            // hala HTTP/1.1'e özgü "hop-by-hop" başlıkları gönderebilir.
+            // Bu başlıkları burada temizlemezsek, KENDİ hyper sunucumuz
+            // "Connection header illegal in HTTP/2" uyarısı verir ve bağlantıyı kapatır.
+            const HOP_BY_HOP_HEADERS: &[&str] = &[
+                "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+                "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
+            ];
+            
+            let headers = req.headers_mut();
+            for header in HOP_BY_HOP_HEADERS {
+                if headers.remove(*header).is_some() {
+                    debug!("Stripped client hop-by-hop header in tunnel: {}", header);
+                }
+            }
+            // ========================= NİHAİ DÜZELTME BİTİŞİ =========================
+
             let authority = host.parse::<http::uri::Authority>().unwrap();
             let uri = Uri::builder()
                 .scheme("https")
@@ -193,6 +213,7 @@ async fn serve_https(
         }
     });
 
+    // Hem HTTP/1.1 hem de HTTP/2'ye izin ver.
     Http::new()
         .serve_connection(stream, service)
         .await
