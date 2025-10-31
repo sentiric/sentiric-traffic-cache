@@ -38,28 +38,6 @@ services:
       app:
         condition: service_healthy
 
-  dns-tester:
-    # ======================== DÜZELTME BAŞLANGICI ========================
-    # Bu profil, servisin 'docker compose up' tarafından otomatik olarak
-    # başlatılmasını engeller. Bu servis sadece CI'da 'run' komutuyla
-    # veya yerelde manuel olarak çalıştırılmalıdır.
-    profiles: ["dns-test"]
-    # ========================= DÜZELTME BİTİŞİ =========================
-    build:
-      context: .
-      dockerfile: Dockerfile.tester
-    environment:
-      - http_proxy=
-      - https_proxy=
-    volumes:
-      - sentiric_certs:/app/.certs:ro
-    networks:
-      - testnet
-    dns: app # Bu satırda bir hata yok, 'run' komutu bunu doğru şekilde ele alacaktır.
-    depends_on:
-      app:
-        condition: service_healthy
-
 networks:
   testnet:
 
