@@ -179,23 +179,8 @@ async fn serve_https(
         let cache = cache.clone();
         let host = host.clone();
         async move {
-            // ======================== NİHAİ DÜZELTME BAŞLANGICI ========================
-            // Sürdürülebilirlik: Bu iki işlemin neden gerekli olduğunu açıkla.
-            // 1. HTTP/2'ye izin veriyoruz (aşağıdaki Http::new() çağrısında).
-            // 2. Bu nedenle, istemci HTTP/2'ye yükselirse protokol hatası vermemesi
-            //    için HTTP/1.1'e özgü "hop-by-hop" başlıklarını temizlemeliyiz.
-            const HOP_BY_HOP_HEADERS: &[&str] = &[
-                "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-                "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
-            ];
-            
-            let headers = req.headers_mut();
-            for header in HOP_BY_HOP_HEADERS {
-                if headers.remove(*header).is_some() {
-                    debug!("Stripped hop-by-hop header for tunneled request: {}", header);
-                }
-            }
-            // ========================= NİHAİ DÜZELTME BİTİŞİ =========================
+            // İyileştirme: Buradaki gereksiz başlık temizleme kodu kaldırıldı.
+            // Bu sorumluluk artık downloader'a aittir.
 
             let authority = host.parse::<http::uri::Authority>().unwrap();
             let uri = Uri::builder()
@@ -209,8 +194,7 @@ async fn serve_https(
         }
     });
 
-    // Düzeltme: `.http1_only(true)` kaldırıldı.
-    // Artık sunucu, istemcinin tercihine göre HTTP/1.1 veya HTTP/2 konuşabilir (ALPN).
+    // HTTP/2'ye izin veriyoruz, çünkü downloader artık başlıkları temizliyor.
     Http::new()
         .serve_connection(stream, service)
         .await
