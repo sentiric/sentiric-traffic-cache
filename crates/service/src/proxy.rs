@@ -1,5 +1,4 @@
 // File: crates/service/src/proxy.rs
-
 use crate::certs::CertificateAuthority;
 use crate::cache::CacheManager;
 use crate::downloader;
@@ -8,17 +7,18 @@ use crate::rules::RuleEngine;
 use anyhow::{Context, Result};
 use hyper::server::conn::Http;
 use hyper::service::service_fn;
-use hyper::{upgrade, Body, Method, Request, Response, Uri};
+// ======================== DÜZELTME BAŞLANGICI ========================
+// `to_bytes` fonksiyonunu import ediyoruz.
+use hyper::{body, upgrade, Body, Method, Request, Response, Uri};
+// ========================= DÜZELTME BİTİŞİ =========================
 use sentiric_core::{Action, FlowEntry};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-// ======================== DÜZELTME BAŞLANGICI ========================
-// 'debug' import'unu geri ekliyoruz çünkü tekrar kullanacağız.
 use tracing::{debug, error, info, warn, Instrument};
-// ========================= DÜZELTME BİTİŞİ =========================
 use uuid::Uuid;
+
 
 pub async fn run_server(
     addr: SocketAddr,
@@ -59,13 +59,26 @@ pub async fn run_server(
 }
 
 async fn proxy_service(
-    req: Request<Body>,
+    mut req: Request<Body>, // 'req' artık mutable olmalı
     ca: Arc<CertificateAuthority>,
     cache: Arc<CacheManager>,
 ) -> Result<Response<Body>, hyper::Error> {
     if Method::CONNECT == req.method() {
         if let Some(host) = req.uri().authority().map(|auth| auth.to_string()) {
             tokio::spawn(async move {
+                // ======================== NİHAİ DÜZELTME BAŞLANGICI ========================
+                // Sürdürülebilirlik: Bu, tüm HTTPS tünel hatalarının kök nedenidir.
+                // Bir isteği `upgrade` etmeden önce, `hyper` bu isteğin gövdesinin
+                // tamamen tüketilmesini bekler. Eğer tüketmezsek, `hyper` bunun bir
+                // hata olduğunu varsayar ve istemci bağlantısını kapatır. Bu da
+                // tünel kurulduktan sonraki ilk okuma denemesinde "unexpected end of file"
+                // hatasına neden olur.
+                //
+                // İsteğin gövdesini `upgrade::on()`'a devretmeden önce tüketerek bu sorunu çözüyoruz.
+                let body = req.body_mut();
+                let _ = body::to_bytes(body).await;
+                // ========================= NİHAİ DÜZELTME BİTİŞİ =========================
+
                 match upgrade::on(req).await {
                     Ok(upgraded) => {
                         if let Err(e) = serve_https(upgraded, host, ca, cache).await {
@@ -87,6 +100,7 @@ async fn proxy_service(
         serve_http(req, cache, false).await
     }
 }
+
 
 async fn serve_http(
     mut req: Request<Body>,
