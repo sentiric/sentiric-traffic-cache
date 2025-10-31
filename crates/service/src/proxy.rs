@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-use tracing::{error, info, warn, Instrument};
+use tracing::{debug, error, info, warn, Instrument};
 use uuid::Uuid;
 
 pub async fn run_server(
@@ -38,8 +38,6 @@ pub async fn run_server(
 
         tokio::spawn(
             async move {
-                // ======================== GÖZLEMLENEBİLİRLİK DEĞİŞİKLİĞİ ========================
-                // Hatanın tam içeriğini loglamak için `err` değişkenini kullan.
                 if let Err(err) = Http::new()
                     .http1_only(true)
                     .http1_keep_alive(true)
@@ -47,13 +45,10 @@ pub async fn run_server(
                     .with_upgrades()
                     .await
                 {
-                    // Bağlantı sıfırlama gibi yaygın ve "normal" hataları gürültü yapmaması için kontrol et.
                     if !err.to_string().contains("connection reset") && !err.to_string().contains("unexpected end of file") {
-                        // Diğer tüm hataları detaylı olarak logla.
                         warn!(cause = ?err, "Connection error");
                     }
                 }
-                // ========================= DEĞİŞİKLİK BİTİŞİ =========================
             }
             .instrument(tracing::info_span!("client", %client_addr)),
         );
@@ -70,15 +65,11 @@ async fn proxy_service(
             tokio::spawn(async move {
                 match upgrade::on(req).await {
                     Ok(upgraded) => {
-                        // ======================== GÖZLEMLENEBİLİRLİK DEĞİŞİKLİĞİ ========================
-                        // `serve_https` başarısız olursa, hatanın tam içeriğini logla.
                         if let Err(e) = serve_https(upgraded, host, ca, cache).await {
                              if !e.to_string().contains("TLS handshake failed") {
-                                // `error!` makrosunu kullanarak hatanın kaynağını (`cause`) logla.
                                 error!(cause = ?e, "HTTPS tunnel error");
                             }
                         }
-                        // ========================= DEĞİŞİKLİK BİTİŞİ =========================
                     }
                     Err(e) => error!(cause = ?e, "Upgrade error"),
                 }
@@ -94,7 +85,6 @@ async fn proxy_service(
     }
 }
 
-// BU FONKSİYONUN GERİ KALANI BİR ÖNCEKİ ADIMDAKİ GİBİ AYNI KALIYOR
 async fn serve_http(
     mut req: Request<Body>,
     cache: Arc<CacheManager>,
@@ -141,7 +131,7 @@ async fn serve_http(
             method: req.method().to_string(),
             uri: uri_string,
             status_code: 200,
-            response_size_bytes: 0, 
+            response_size_bytes: 0,
             is_hit: true,
         }));
         return Ok(Response::new(cached_body));
@@ -189,6 +179,24 @@ async fn serve_https(
         let cache = cache.clone();
         let host = host.clone();
         async move {
+            // ======================== NİHAİ DÜZELTME BAŞLANGICI ========================
+            // Sürdürülebilirlik: Bu iki işlemin neden gerekli olduğunu açıkla.
+            // 1. HTTP/2'ye izin veriyoruz (aşağıdaki Http::new() çağrısında).
+            // 2. Bu nedenle, istemci HTTP/2'ye yükselirse protokol hatası vermemesi
+            //    için HTTP/1.1'e özgü "hop-by-hop" başlıklarını temizlemeliyiz.
+            const HOP_BY_HOP_HEADERS: &[&str] = &[
+                "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+                "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
+            ];
+            
+            let headers = req.headers_mut();
+            for header in HOP_BY_HOP_HEADERS {
+                if headers.remove(*header).is_some() {
+                    debug!("Stripped hop-by-hop header for tunneled request: {}", header);
+                }
+            }
+            // ========================= NİHAİ DÜZELTME BİTİŞİ =========================
+
             let authority = host.parse::<http::uri::Authority>().unwrap();
             let uri = Uri::builder()
                 .scheme("https")
@@ -201,8 +209,9 @@ async fn serve_https(
         }
     });
 
+    // Düzeltme: `.http1_only(true)` kaldırıldı.
+    // Artık sunucu, istemcinin tercihine göre HTTP/1.1 veya HTTP/2 konuşabilir (ALPN).
     Http::new()
-        .http1_only(true) 
         .serve_connection(stream, service)
         .await
         .context("Error serving HTTPS connection")
