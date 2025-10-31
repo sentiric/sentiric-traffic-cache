@@ -11,7 +11,6 @@ services:
     volumes:    
       - ../config.toml:/app/config.toml
       - ./rules.test.toml:/app/rules.toml
-      # YENİ SATIR: Sertifika klasörünü paylaşmak için bir volume oluştur
       - sentiric_certs:/app/.certs
     networks:
       - testnet
@@ -30,7 +29,6 @@ services:
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
       - no_proxy=app,localhost
-    # YENİ SATIR: Sertifika klasörünü bu konteynere de bağla
     volumes:
       - sentiric_certs:/app/.certs:ro
     command: tail -f /dev/null
@@ -40,13 +38,16 @@ services:
       app:
         condition: service_healthy
 
-  # Bu servis, sadece DNS tabanlı şeffaf proxy testlerini çalıştırmak içindir.
-  # Proxy ortam değişkenleri yoktur ve DNS sunucusu doğrudan 'app'e yönlendirilmiştir.
   dns-tester:
+    # ======================== DÜZELTME BAŞLANGICI ========================
+    # Bu profil, servisin 'docker compose up' tarafından otomatik olarak
+    # başlatılmasını engeller. Bu servis sadece CI'da 'run' komutuyla
+    # veya yerelde manuel olarak çalıştırılmalıdır.
+    profiles: ["dns-test"]
+    # ========================= DÜZELTME BİTİŞİ =========================
     build:
       context: .
       dockerfile: Dockerfile.tester
-    # Bu servis geçicidir, bu yüzden sabit bir konteyner adına ihtiyacı yok.
     environment:
       - http_proxy=
       - https_proxy=
@@ -54,15 +55,13 @@ services:
       - sentiric_certs:/app/.certs:ro
     networks:
       - testnet
-    dns:
-      - app # Docker'ın bu konteyner için DNS sunucusu olarak 'app' servisini kullanmasını sağlar.
+    dns: app # Bu satırda bir hata yok, 'run' komutu bunu doğru şekilde ele alacaktır.
     depends_on:
       app:
-        condition: service_healthy        
+        condition: service_healthy
 
 networks:
   testnet:
 
-# YENİ BÖLÜM: Paylaşılan volume'ü tanımla
 volumes:
   sentiric_certs:
