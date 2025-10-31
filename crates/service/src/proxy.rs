@@ -129,14 +129,15 @@ async fn serve_http(
     let cache_key = uri_string.clone();
     if let Some(cached_body) = cache.get(&cache_key).await {
         info!("[HIT] {}", uri_string);
-        let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(FlowEntry {
+        let flow = FlowEntry {
             id: Uuid::new_v4().to_string(),
             method: req.method().to_string(),
             uri: uri_string,
             status_code: 200,
             response_size_bytes: 0,
             is_hit: true,
-        }));
+        };
+        let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated { flow });
         return Ok(Response::new(cached_body));
     }
 
@@ -145,14 +146,15 @@ async fn serve_http(
 
     match downloader::forward_request(req).await {
         Ok(mut response) => {
-             let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated(FlowEntry {
+            let flow = FlowEntry {
                 id: Uuid::new_v4().to_string(),
-                method: "GET".to_string(),
+                method: "GET".to_string(), // Simplified for now
                 uri: uri_string.clone(),
                 status_code: response.status().as_u16(),
                 response_size_bytes: response.headers().get(hyper::header::CONTENT_LENGTH).and_then(|v| v.to_str().ok()).and_then(|s| s.parse().ok()).unwrap_or(0),
                 is_hit: false,
-            }));
+            };
+             let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated { flow });
 
             let body_stream = std::mem::replace(response.body_mut(), Body::empty());
             if let Ok(body_for_client) = cache.put_stream(cache_key, body_stream).await {

@@ -1,8 +1,10 @@
+// File: crates/service/src/management.rs
+
 use crate::cache::CacheManager;
 use crate::config;
 use anyhow::Result;
 use futures_util::{StreamExt, SinkExt};
-use sentiric_core::{Stats, FlowEntry}; // <-- Rule kaldırıldı
+use sentiric_core::{Stats, FlowEntry};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
@@ -11,13 +13,18 @@ use warp::Filter;
 use serde::Serialize;
 use tracing::{info, warn};
 
+// ======================== DÜZELTME BAŞLANGICI ========================
+// Enum'ı tuple variant'tan struct variant'a dönüştürüyoruz.
+// Bu, serde_json'un ürettiği JSON alan adlarını ("stats", "flow")
+// frontend'in beklentileriyle eşleşecek şekilde açıkça kontrol etmemizi sağlar.
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "type")]
 pub enum WsEvent {
-    StatsUpdated(Stats),
-    FlowUpdated(FlowEntry),
+    StatsUpdated { stats: Stats },
+    FlowUpdated { flow: FlowEntry },
 }
+// ========================= DÜZELTME BİTİŞİ =========================
 
 lazy_static::lazy_static! {
     pub static ref EVENT_BROADCASTER: Sender<WsEvent> = broadcast::channel(128).0;

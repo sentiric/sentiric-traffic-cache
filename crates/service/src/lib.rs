@@ -53,7 +53,10 @@ pub async fn run() -> Result<()> {
     let stats_broadcaster_task = tokio::spawn(async move {
         loop {
             let stats = cache_manager.get_stats().await;
-            let _ = EVENT_BROADCASTER.send(management::WsEvent::StatsUpdated(stats));
+            // ======================== DÜZELTME BAŞLANGICI ========================
+            // WsEvent'i yeni struct variant yapısına uygun olarak oluştur.
+            let _ = EVENT_BROADCASTER.send(management::WsEvent::StatsUpdated { stats });
+            // ========================= DÜZELTME BİTİŞİ =========================
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
