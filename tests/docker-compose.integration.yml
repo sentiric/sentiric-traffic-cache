@@ -30,11 +30,6 @@ services:
       dockerfile: Dockerfile.tester
     image: sentiric-tester-image
     container_name: sentiric-tester-runner
-    # --- DÜZELTME: 'dns' bloğu tamamen kaldırıldı ---
-    # Artık Docker'ın kendi iç DNS çözümlemesine güveniyoruz.
-    # 'test-runner' içindeki /etc/resolv.conf, Docker'ın kendi
-    # DNS sunucusunu (genellikle 127.0.0.11) gösterecek ve bu sunucu
-    # 'app' ismini doğru IP'ye çözecektir.
     environment:
       - http_proxy=http://app:3128
       - https_proxy=http://app:3128
@@ -42,6 +37,8 @@ services:
     volumes:
       - ../tests:/tests
       - sentiric_certs:/app/.certs:ro
+      # --- YENİ SATIR: DOCKER SOKETİNİ BAĞLAMA ---
+      - /var/run/docker.sock:/var/run/docker.sock
     command: /tests/test-runner.sh
     depends_on:
       app:

@@ -1,5 +1,7 @@
+# Debian tabanlı temel imaj
 FROM debian:bookworm-slim
 
+# Test için gerekli temel araçları kur
 RUN apt-get update && apt-get install -y \
     curl \
     dnsutils \
@@ -8,15 +10,29 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
+# --- YENİ BÖLÜM: DOCKER CLI KURULUMU ---
+RUN apt-get update && apt-get install -y \
+    apt-transport-https \
+    gnupg \
+    lsb-release \
+    --no-install-recommends && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    # Sadece CLI'ı kuruyoruz, daemon'a gerek yok.
+    apt-get install -y docker-ce-cli && \
+    rm -rf /var/lib/apt/lists/*
+# --- DOCKER CLI KURULUMU SONU ---
+
 WORKDIR /tests
 COPY . .
 
-# YENİ SATIR: entrypoint'i de kopyala ve izin ver
+# Script'lere çalıştırma izni ver
 RUN chmod +x test-runner.sh helpers.sh scenarios/*.sh entrypoint.sh
 
-# YENİ SATIR: Konteyner başladığında bu script'i çalıştır
+# Sertifika kurulumunu ve ana komutu çalıştır
 ENTRYPOINT ["/tests/entrypoint.sh"]
-
-# ENTRYPOINT, CMD'yi argüman olarak alır. Bu, 'tail -f /dev/null' komutunun
-# sertifika kurulumundan SONRA çalışmasını sağlar.
-CMD ["tail", "-f", "/dev/null"]
+CMD ["/tests/test-runner.sh"]
