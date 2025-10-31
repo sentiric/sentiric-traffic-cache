@@ -40,6 +40,26 @@ services:
       app:
         condition: service_healthy
 
+  # Bu servis, sadece DNS tabanlı şeffaf proxy testlerini çalıştırmak içindir.
+  # Proxy ortam değişkenleri yoktur ve DNS sunucusu doğrudan 'app'e yönlendirilmiştir.
+  dns-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.tester
+    # Bu servis geçicidir, bu yüzden sabit bir konteyner adına ihtiyacı yok.
+    environment:
+      - http_proxy=
+      - https_proxy=
+    volumes:
+      - sentiric_certs:/app/.certs:ro
+    networks:
+      - testnet
+    dns:
+      - app # Docker'ın bu konteyner için DNS sunucusu olarak 'app' servisini kullanmasını sağlar.
+    depends_on:
+      app:
+        condition: service_healthy        
+
 networks:
   testnet:
 

@@ -108,20 +108,17 @@ jobs:
       - name: 🧪 Run Rule (Bypass) Test
         run: docker compose -f tests/docker-compose.integration.yml exec tester /tests/test-runner.sh /tests/scenarios/04_rule_bypass.test.sh
       
-      # --- YENİ UÇTAN UCA DNS TESTLERİ ---
       - name: 🧪 Run DNS End-to-End (Block) Test
         run: >
-          docker compose -f tests/docker-compose.integration.yml run --rm
-          -e http_proxy= -e https_proxy=
-          --dns=app
-          tester /tests/test-runner.sh /tests/scenarios/05_dns_block.test.sh
+          docker compose -f tests/docker-compose.integration.yml
+          run --rm dns-tester
+          /tests/test-runner.sh /tests/scenarios/05_dns_block.test.sh
 
       - name: 🧪 Run DNS End-to-End (Bypass) Test
         run: >
-          docker compose -f tests/docker-compose.integration.yml run --rm
-          -e http_proxy= -e https_proxy=
-          --dns=app
-          tester /tests/test-runner.sh /tests/scenarios/06_dns_bypass.test.sh
+          docker compose -f tests/docker-compose.integration.yml
+          run --rm dns-tester
+          /tests/test-runner.sh /tests/scenarios/06_dns_bypass.test.sh
 
       # --- TEMİZLİK ---
       - name: Show logs on failure
