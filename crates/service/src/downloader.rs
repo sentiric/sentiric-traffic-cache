@@ -28,11 +28,7 @@ pub async fn forward_request(
 ) -> anyhow::Result<Response<Body>> {
     debug!("Forwarding request to the internet");
 
-    // ======================== NİHAİ DÜZELTME BAŞLANGICI ========================
-    // Sürdürülebilirlik: "Hop-by-hop" başlıkları sadece tek bir bağlantı için
-    // geçerlidir ve proxy tarafından asla ileriye taşınmamalıdır. Bu başlıkları
-    // temizlemek, hem protokol standartlarına uymamızı sağlar hem de hedef
-    // sunucuların isteği reddetmesini önler.
+    // Hop-by-hop header'larını temizle
     const HOP_BY_HOP_HEADERS: &[&str] = &[
         "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
         "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
@@ -44,17 +40,33 @@ pub async fn forward_request(
             debug!("Stripped hop-by-hop header before forwarding: {}", header);
         }
     }
-    // ========================= NİHAİ DÜZELTME BİTİŞİ =========================
     
+    // Accept-Encoding header'ını normalize et
+    if !headers.contains_key("accept-encoding") {
+        headers.insert("accept-encoding", "gzip, deflate, br".parse()?);
+        debug!("Added default accept-encoding header");
+    }
+
+    // Host header'ını ayarla
     let host = req.uri().host().unwrap();
     let port = req.uri().port_u16().unwrap_or(if req.uri().scheme_str() == Some("https") { 443 } else { 80 });
     let host_header = format!("{}:{}", host, port);
     req.headers_mut().insert(hyper::header::HOST, host_header.parse()?);
 
-    // Bu satır, dış dünyaya giden isteklerin kararlılığını artırmak için
-    // HTTP/1.1 kullanmaya zorlar. Bu, birçok sunucuyla uyumluluğu garanti eder.
+    // HTTP/1.1 kullanmaya zorla
     *req.version_mut() = Version::HTTP_11;
 
+    debug!("Forwarding request to: {}", req.uri());
     let response = HTTP_CLIENT.request(req).await?;
+    
+    // Response header'larını logla
+    debug!("Received response with status: {}", response.status());
+    if let Some(encoding) = response.headers().get("content-encoding") {
+        debug!("Response content-encoding: {:?}", encoding);
+    }
+    if let Some(content_type) = response.headers().get("content-type") {
+        debug!("Response content-type: {:?}", content_type);
+    }
+
     Ok(response)
 }

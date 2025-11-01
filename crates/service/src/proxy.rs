@@ -14,9 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
-// ======================== DÜZELTME BAŞLANGICI ========================
 use tracing::{error, info, warn, Instrument};
-// ========================= DÜZELTME BİTİŞİ =========================
 use uuid::Uuid;
 
 pub async fn run_server(
@@ -126,8 +124,27 @@ async fn serve_http(
 
     // Action::Allow
     let cache_key = uri_string.clone();
+    
+    // Cache kontrolü
     if let Some(cached_body) = cache.get(&cache_key).await {
         info!("[HIT] {}", uri_string);
+        
+        // Header'ları al ve response'u oluştur
+        let mut response = Response::new(cached_body);
+        
+        // Cache'ten header bilgilerini al
+        if let Some((content_encoding, content_type)) = cache.get_headers(&cache_key).await {
+            if !content_encoding.is_empty() {
+                response.headers_mut().insert("content-encoding", content_encoding.parse().unwrap());
+            }
+            if !content_type.is_empty() {
+                response.headers_mut().insert("content-type", content_type.parse().unwrap());
+            }
+        }
+        
+        // Vary header'ını garanti et
+        response.headers_mut().insert("vary", "accept-encoding".parse().unwrap());
+        
         let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated {
             flow: FlowEntry {
                 id: Uuid::new_v4().to_string(),
@@ -138,27 +155,44 @@ async fn serve_http(
                 is_hit: true,
             }
         });
-        return Ok(Response::new(cached_body));
+        return Ok(response);
     }
 
     info!("[MISS] {}", uri_string);
-    cache.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     match downloader::forward_request(req).await {
         Ok(mut response) => {
-             let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated {
-                 flow: FlowEntry {
+            let status_code = response.status().as_u16();
+            let content_length = response.headers()
+                .get(hyper::header::CONTENT_LENGTH)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            
+            let _ = EVENT_BROADCASTER.send(WsEvent::FlowUpdated {
+                flow: FlowEntry {
                     id: Uuid::new_v4().to_string(),
                     method: "GET".to_string(),
                     uri: uri_string.clone(),
-                    status_code: response.status().as_u16(),
-                    response_size_bytes: response.headers().get(hyper::header::CONTENT_LENGTH).and_then(|v| v.to_str().ok()).and_then(|s| s.parse().ok()).unwrap_or(0),
+                    status_code,
+                    response_size_bytes: content_length,
                     is_hit: false,
                 }
-             });
+            });
+
+            // Header'ları al
+            let content_encoding = response.headers()
+                .get("content-encoding")
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.to_string());
+                
+            let content_type = response.headers()
+                .get("content-type")
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.to_string());
 
             let body_stream = std::mem::replace(response.body_mut(), Body::empty());
-            if let Ok(body_for_client) = cache.put_stream(cache_key, body_stream).await {
+            if let Ok(body_for_client) = cache.put_stream(cache_key, body_stream, content_encoding, content_type).await {
                 *response.body_mut() = body_for_client;
             }
             Ok(response)
