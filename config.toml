@@ -8,7 +8,7 @@ bind_address = "0.0.0.0"
 
 [dns]
 enabled = true
-port = 8053 # <-- DEĞİŞİKLİK: Daha az kullanılan bir port
+port = 53 # <-- DEĞİŞİKLİK: Daha az kullanılan bir port
 bind_address = "0.0.0.0"
 response_ip = "127.0.0.1"
 
